@@ -3,3 +3,4 @@ uvicorn
 python-multipart
 email-validator
 SQLAlchemy
+psycopg2-binary

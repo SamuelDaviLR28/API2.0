@@ -1,5 +1,4 @@
 fastapi
 uvicorn
 python-multipart
-pydanticemail-validator
 email-validator

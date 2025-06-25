@@ -1,7 +1,11 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.security.api_key import APIKeyHeader
 from routers import dispatch, patch, rastro, cancelamento
+from dotenv import load_dotenv
 import os
+
+# Carregar variáveis de ambiente do .env
+load_dotenv()
 
 app = FastAPI(
     title="API Integração Transportadora - Toutbox",

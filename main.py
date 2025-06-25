@@ -1,11 +1,13 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.security.api_key import APIKeyHeader
-from routers import dispatch, patch, rastro, cancelamento
 from dotenv import load_dotenv
 import os
 
 # Carregar variáveis de ambiente do .env
 load_dotenv()
+
+# Importação das rotas (certifique-se de que existem esses arquivos em routers/)
+from routers import dispatch, patch, rastro, cancelamento
 
 app = FastAPI(
     title="API Integração Transportadora - Toutbox",
@@ -13,31 +15,46 @@ app = FastAPI(
     swagger_ui_parameters={"persistAuthorization": True}
 )
 
-# Segurança para exibir o botão Authorize no Swagger
+# Header usado para autenticação via API Key
 api_key_header = APIKeyHeader(name="x-api-key", auto_error=False)
 
+# Middleware para autenticar todas as rotas privadas
 @app.middleware("http")
 async def autenticar_api_key(request: Request, call_next):
-    # Rotas públicas liberadas
-    if request.url.path.startswith(("/docs", "/openapi.json", "/favicon.ico", "/redoc")):
+    try:
+        # Liberar acesso para documentação e arquivos públicos
+        if request.url.path.startswith((
+            "/docs", "/openapi.json", "/favicon.ico", "/redoc"
+        )):
+            return await call_next(request)
+
+        # Obter chave do header e do .env
+        chave_enviada = request.headers.get("x-api-key")
+        chave_configurada = os.getenv("API_KEY")
+
+        # Logs para depuração
+        print("🔍 Header recebido:", repr(chave_enviada))
+        print("🔐 Variável API_KEY:", repr(chave_configurada))
+
+        if not chave_configurada:
+            raise HTTPException(status_code=500, detail="Variável de ambiente API_KEY não configurada.")
+
+        if chave_enviada != chave_configurada:
+            raise HTTPException(status_code=403, detail="API Key inválida")
+
+        # Se passou, segue para a rota
         return await call_next(request)
 
-    chave_enviada = request.headers.get("x-api-key")
-    chave_configurada = os.getenv("API_KEY")
+    except Exception as e:
+        print("🔥 Erro interno:", repr(e))
+        raise HTTPException(status_code=500, detail="Erro interno ao processar o pedido.")
 
-    # Log de depuração
-    print("🔍 Header recebido:", repr(chave_enviada))
-    print("🔐 Variável API_KEY:", repr(chave_configurada))
+# Rota simples para teste (opcional)
+@app.get("/")
+def raiz():
+    return {"mensagem": "API no ar com autenticação por API Key."}
 
-    if not chave_configurada:
-        raise HTTPException(status_code=500, detail="Variável de ambiente API_KEY não configurada.")
-
-    if chave_enviada != chave_configurada:
-        raise HTTPException(status_code=403, detail="API Key inválida")
-
-    return await call_next(request)
-
-# Rotas da aplicação
+# Registrar rotas principais
 app.include_router(dispatch.router)
 app.include_router(patch.router)
 app.include_router(rastro.router)

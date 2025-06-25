@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Header
 from fastapi.security.api_key import APIKeyHeader
 from dotenv import load_dotenv
 import os

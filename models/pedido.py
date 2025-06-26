@@ -4,7 +4,7 @@ from database import Base
 
 class Pedido(Base):
     __tablename__ = "pedidos"
-    __table_args__ = {"schema": "public"}  # força usar schema public
+    __table_args__ = {"schema": "public"}  # usar schema public se quiser
 
     id = Column(Integer, primary_key=True, index=True)
     numero_pedido = Column(String(100), nullable=False)

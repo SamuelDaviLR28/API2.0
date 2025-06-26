@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException 
 from sqlalchemy.orm import Session
 from models.dispatch import DispatchRequest
 from models.pedido import Pedido
 from database import get_db
 from security import verificar_api_key
-
+import json
 import traceback
 
 router = APIRouter()
@@ -15,13 +15,12 @@ async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db
         if not pedido.Itens:
             raise HTTPException(status_code=400, detail="Pedido sem itens.")
 
-        # Serializa todo o JSON recebido
-        json_serializado = pedido.model_dump_json(indent=2, ensure_ascii=False)
+        # ✅ Serializa corretamente com Pydantic v2
+        json_serializado = json.dumps(pedido.model_dump(), indent=2, ensure_ascii=False)
 
         print("✅ Pedido recebido:")
         print(json_serializado)
 
-        # Salva no banco
         pedido_salvo = Pedido(
             numero_pedido=pedido.NumeroPedido,
             data_criacao=pedido.CriacaoPedido,
@@ -37,4 +36,4 @@ async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db
     except Exception as e:
         print("❌ Erro ao processar pedido:", str(e))
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail="Erro interno ao processar o pedido.")
+        raise HTTPException(status_code=500, detail=str(e))

@@ -1,134 +1,160 @@
-from typing import Optional, List
+from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
 
 class Produto(BaseModel):
-    Descricao: Optional[str]
-    Altura: Optional[float]
-    Comprimento: Optional[float]
-    Largura: Optional[float]
-    Peso: Optional[float]
-    Preco: Optional[float]
-    Quantidade: Optional[int]
-    SKU: Optional[str]
-    CodigoProduto: Optional[str]
-    NumeroDeSerie: Optional[str]
-    TipoProduto: Optional[str]
-    Fabricante: Optional[str]
+    Descricao: str
+    Altura: Optional[float] = None
+    Comprimento: Optional[float] = None
+    Largura: Optional[float] = None
+    Peso: Optional[float] = None
+    Preco: float
+    Quantidade: int
+    SKU: str
+    CodigoProduto: Optional[str] = None
+    NumeroDeSerie: Optional[str] = None
+    TipoProduto: Optional[str] = None
+    Fabricante: Optional[str] = None
 
 class Transportadora(BaseModel):
-    PrevisaoDeEntrega: Optional[datetime]
-    DataPrometida: Optional[datetime]
-    Id: Optional[str]
-    Nome: Optional[str]
-    NomeServico: Optional[str]
-    IdServico: Optional[str]
-    CodigoRastreio: Optional[str]
-    ListaPostagem: Optional[str]
-    Reversa: Optional[bool]
-    Coleta: Optional[bool]
-    Dispatch: Optional[bool]
-    AlocacaoAutomatica: Optional[bool]
-    CodigoAutorizacao: Optional[str]
-    PrazoDiasUteis: Optional[int]
-    PrazoEntregaFinal: Optional[datetime]
-    ValorAR: Optional[float]
-    ValorAverbadoPago: Optional[float]
-    ValorDeclarado: Optional[float]
-    ValorFrete: Optional[float]
-    CNPJ: Optional[str]
-    ResponsavelRecebimento: Optional[str]
-    SenhaVerificacao: Optional[str]
-    TipoOperacao: Optional[str]
-    TipoDevolucao: Optional[str]
-    MotivoDevolucao: Optional[str]
-    Prioridade: Optional[bool]
-    TipoPrioridade: Optional[str]
-    ServicosAdicionais: Optional[str]
+    PrevisaoDeEntrega: Optional[datetime] = None
+    DataPrometida: Optional[datetime] = None
+    Id: str
+    Nome: str
+    NomeServico: str
+    IdServico: str
+    CodigoRastreio: str
+    ListaPostagem: str
+    Reversa: bool
+    Coleta: bool
+    Dispatch: bool
+    AlocacaoAutomatica: bool
+    CodigoAutorizacao: Optional[str] = None
+    PrazoDiasUteis: Optional[int] = None
+    PrazoEntregaFinal: Optional[datetime] = None
+    ValorAR: float
+    ValorAverbadoPago: float
+    ValorDeclarado: float
+    ValorFrete: float
+    CNPJ: Optional[str] = None
+    ResponsavelRecebimento: Optional[str] = None
+    SenhaVerificacao: Optional[str] = None
+    TipoOperacao: Optional[str] = None
+    TipoDevolucao: Optional[str] = None
+    MotivoDevolucao: Optional[str] = None
+    Prioridade: bool
+    TipoPrioridade: Optional[str] = None
+    ServicosAdicionais: Optional[str] = None
 
-class DestinatarioRemetenteTomador(BaseModel):
-    Nome: Optional[str]
-    CPFCNPJ: Optional[str]
-    Telefone: Optional[str] = None
+class Destinatario(BaseModel):
+    Nome: str
+    CPFCNPJ: str
+    Telefone: str
     TelefoneFixo: Optional[str] = None
     TelefoneAdicional: Optional[str] = None
-    Email: Optional[str] = None
-    Empresa: Optional[str] = None
-    Endereco: Optional[str]
-    Numero: Optional[str]
-    Complemento: Optional[str]
-    Bairro: Optional[str]
-    Cidade: Optional[str]
-    Estado: Optional[str]
-    Pais: Optional[str]
-    CEP: Optional[str]
-    IE: Optional[str]
+    Email: str
+    Empresa: str
+    Endereco: str
+    Numero: str
+    Complemento: Optional[str] = None
+    Bairro: str
+    Cidade: str
+    Estado: str
+    Pais: str
+    CEP: str
+    IE: str
     Lat: Optional[float] = None
     Long: Optional[float] = None
     Referencia: Optional[str] = None
+
+class Remetente(BaseModel):
+    Nome: str
     Loja: Optional[str] = None
-    NomeCentroDistribuicao: Optional[str] = None
-    CodigoCentroDistribuicao: Optional[str] = None
+    NomeCentroDistribuicao: str
+    CodigoCentroDistribuicao: str
+    Endereco: str
+    Numero: str
+    Complemento: Optional[str] = None
+    Bairro: str
+    Cidade: str
+    Estado: str
+    Pais: str
+    CEP: str
+    IE: str
+    CPFCNPJ: str
+
+class Tomador(BaseModel):
+    Nome: str
+    Endereco: str
+    Numero: str
+    Complemento: Optional[str] = None
+    Bairro: str
+    Cidade: str
+    Estado: str
+    Pais: str
+    CEP: str
+    IE: Optional[str] = None
+    CPFCNPJ: str
 
 class Frete(BaseModel):
-    Transportadora: Optional[Transportadora]
-    Destinatario: Optional[DestinatarioRemetenteTomador]
-    Remetente: Optional[DestinatarioRemetenteTomador]
-    Tomador: Optional[DestinatarioRemetenteTomador]
+    Transportadora: Transportadora
+    Destinatario: Destinatario
+    Remetente: Remetente
+    Tomador: Tomador
 
 class Item(BaseModel):
-    IdUnico: Optional[str]
-    QuantidadeProdutos: Optional[int]
-    Volumes: Optional[int]
-    Largura: Optional[float]
-    Peso: Optional[float]
-    Altura: Optional[float]
-    Comprimento: Optional[float]
-    Formato: Optional[str]
-    Produtos: Optional[List[Produto]]
-    Frete: Optional[Frete]
+    IdUnico: str
+    QuantidadeProdutos: int
+    Volumes: int
+    Largura: Optional[float] = None
+    Peso: Optional[float] = None
+    Altura: Optional[float] = None
+    Comprimento: Optional[float] = None
+    Formato: Optional[str] = None
+    Produtos: List[Produto]
+    Frete: Frete
 
 class NotaFiscal(BaseModel):
-    DataEmissao: Optional[datetime]
-    Numero: Optional[int]
-    Serie: Optional[int]
-    Cfop: Optional[str]
-    Chave: Optional[str]
-    ValorTotal: Optional[float]
-    ValorTotalProdutos: Optional[float]
-    StringXML: Optional[str]
+    DataEmissao: datetime
+    Numero: int
+    Serie: int
+    Cfop: Optional[str] = None
+    Chave: Optional[str] = None
+    ValorTotal: float
+    ValorTotalProdutos: float
+    StringXML: Optional[str] = None
 
 class InfosAdicionais(BaseModel):
-    CartaoPostagem: Optional[str]
-    CodigoAdmnistrativo: Optional[str]
-    ContratoCorreios: Optional[str]
-    EntregaAgendada: Optional[bool]
-    DataAgendamento: Optional[datetime]
-    PeriodoEntregaAgendamento: Optional[str]
-    Cluster: Optional[str]
-    TecnologiaDeAcesso: Optional[str]
-    Acronimo: Optional[str]
-    IdCliente: Optional[str]
-    IdDestinatario: Optional[str]
-    Portabilidade: Optional[bool]
-    SegmentoCliente: Optional[str]
+    CartaoPostagem: Optional[str] = None
+    CodigoAdmnistrativo: Optional[str] = None
+    ContratoCorreios: Optional[str] = None
+    EntregaAgendada: bool
+    DataAgendamento: Optional[datetime] = None
+    PeriodoEntregaAgendamento: Optional[str] = None
+    Cluster: Optional[str] = None
+    TecnologiaDeAcesso: Optional[str] = None
+    Acronimo: Optional[str] = None
+    IdCliente: Optional[str] = None
+    IdDestinatario: Optional[str] = None
+    Portabilidade: bool
+    SegmentoCliente: Optional[str] = None
 
-class Pedido(BaseModel):
+class DispatchRequest(BaseModel):
     CriacaoPedido: datetime
-    DataPagamento: Optional[datetime]
+    DataPagamento: Optional[datetime] = None
     NumeroPedido: str
-    NumeroPedidoMarketplace: Optional[str]
-    NumeroPedidoErp: Optional[str]
-    IdsAuxiliares: Optional[str]
-    NumeroPedidoAux: Optional[str]
-    Marketplace: Optional[str]
-    Marca: Optional[str]
-    Seller: Optional[str]
-    CanalDeVenda: Optional[str]
-    Warehouse: Optional[str]
-    UnidadeDeNegocio: Optional[str]
-    Rede: Optional[str]
-    Campanha: Optional[str]
+    NumeroPedidoMarketplace: Optional[str] = None
+    NumeroPedidoErp: Optional[str] = None
+    IdsAuxiliares: Optional[str] = None
+    NumeroPedidoAux: Optional[str] = None
+    Marketplace: Optional[str] = None
+    Marca: Optional[str] = None
+    Seller: Optional[str] = None
+    CanalDeVenda: Optional[str] = None
+    Warehouse: Optional[str] = None
+    UnidadeDeNegocio: Optional[str] = None
+    Rede: Optional[str] = None
+    Campanha: Optional[str] = None
     Itens: List[Item]
-    NotaFiscal: Optional[NotaFiscal]
-    InfosAdicionais: Optional[InfosAdicionais]
+    NotaFiscal: NotaFiscal
+    InfosAdicionais: InfosAdicionais

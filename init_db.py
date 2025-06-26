@@ -1,9 +1,7 @@
-from database import engine, Base
-from models.pedido import Pedido  
+from database import Base, engine
+from models.pedido import Pedido  # Garante que o modelo seja carregado
 
-def criar_tabelas():
-    Base.metadata.create_all(bind=engine)
-    print("Tabelas criadas com sucesso!")
-
-if __name__ == "__main__":
-    criar_tabelas()
+print("📦 Criando tabelas...")
+Base.metadata.drop_all(bind=engine)  # ⚠️ Opcional: limpa tudo antes
+Base.metadata.create_all(bind=engine)
+print("✅ Tabelas criadas!")

@@ -1,10 +1,10 @@
-from fastapi import FastAPI, Request, HTTPException, Header
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.security.api_key import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
 
-# Carrega as variáveis do arquivo .env
+# Carrega variáveis do .env
 load_dotenv()
 
 # Importação das rotas
@@ -16,7 +16,7 @@ app = FastAPI(
     swagger_ui_parameters={"persistAuthorization": True}
 )
 
-# Middleware opcional (libera o acesso de outros domínios)
+# Libera CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -24,20 +24,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Cabeçalho usado para autenticação via API Key
+# Cabeçalho da API Key
 api_key_header = APIKeyHeader(name="x-api-key", auto_error=False)
 
-# Middleware para autenticar apenas rotas sensíveis
+# Middleware para autenticação
 @app.middleware("http")
 async def autenticar_api_key(request: Request, call_next):
     try:
-        # Rotas públicas liberadas, sem autenticação
-        if request.url.path.startswith(("/docs", "/openapi.json", "/favicon.ico", "/redoc", "/")):
+        # Rotas públicas (sem proteção)
+        rotas_livres = ("/", "/docs", "/openapi.json", "/favicon.ico", "/redoc")
+        if request.url.path in rotas_livres:
             return await call_next(request)
 
         # Apenas protege rotas sensíveis
         rotas_sensiveis = ("/dispatch", "/patch", "/rastro", "/cancelamento")
-
         if any(request.url.path.startswith(r) for r in rotas_sensiveis):
             chave_enviada = request.headers.get("x-api-key")
             chave_configurada = os.getenv("API_KEY")
@@ -57,7 +57,7 @@ async def autenticar_api_key(request: Request, call_next):
         print("🔥 Erro interno:", repr(e))
         raise HTTPException(status_code=500, detail="Erro interno ao processar o pedido.")
 
-# Rota raiz para teste
+# Rota de teste
 @app.get("/")
 def raiz():
     return {"mensagem": "API no ar com autenticação por API Key nas rotas sensíveis."}

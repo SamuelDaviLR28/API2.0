@@ -7,3 +7,4 @@ class Pedido(Base):
     id = Column(Integer, primary_key=True, index=True)
     numero_pedido = Column(String(100), nullable=False)
     cliente = Column(String(100), nullable=True)
+    data_criacao = Column(DateTime(timezone=True), server_default=func.now())

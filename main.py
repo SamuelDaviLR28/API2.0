@@ -49,4 +49,21 @@ async def autenticar_api_key(request: Request, call_next):
                 raise HTTPException(status_code=500, detail="Variável de ambiente API_KEY não configurada.")
 
             if chave_enviada != chave_configurada:
-                rais
+                raise HTTPException(status_code=403, detail="API Key inválida")
+
+        return await call_next(request)
+
+    except Exception as e:
+        print("🔥 Erro interno:", repr(e))
+        raise HTTPException(status_code=500, detail="Erro interno ao processar o pedido.")
+
+# Rota raiz para teste
+@app.get("/")
+def raiz():
+    return {"mensagem": "API no ar com autenticação por API Key nas rotas sensíveis."}
+
+# Registro das rotas
+app.include_router(dispatch.router)
+app.include_router(patch.router)
+app.include_router(rastro.router)
+app.include_router(cancelamento.router)

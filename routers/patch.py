@@ -1,31 +1,46 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Request, Query, Depends
 import httpx
+from sqlalchemy.orm import Session
+from database import get_db
+from models.pedido import PatchLog
+from datetime import datetime
 
 router = APIRouter()
 
 @router.patch("/patch")
 async def enviar_patch_toutbox(
+    request: Request,
     nfkey: str = Query(..., description="Chave da Nota Fiscal"),
     courier_id: str = Query(None, description="ID da transportadora (para pedidos via dispatch)"),
+    db: Session = Depends(get_db),
 ):
     try:
+        patch_body = await request.json()
+
         url = f"http://production.toutbox.com.br/api/v1/external/api/v1/External/Order?nfkey={nfkey}"
         if courier_id:
             url += f"&courier_id={courier_id}"
 
-        # Exemplo de corpo do PATCH
-        patch_body = [
-            {"value": "1", "path": "/Itens/0/Frete/Transportadora/PrazoDiasUteis", "op": "replace"},
-            {"value": courier_id or "84", "path": "/Itens/0/Frete/Transportadora/id", "op": "replace"},
-        ]
-
         async with httpx.AsyncClient() as client:
             response = await client.patch(url, json=patch_body)
 
+        # Salvar log da requisição/resposta
+        log = PatchLog(
+            nfkey=nfkey,
+            courier_id=courier_id,
+            data_envio=datetime.utcnow(),
+            body_enviado=patch_body,
+            status_code=response.status_code,
+            resposta=response.json(),
+        )
+        db.add(log)
+        db.commit()
+
         return {
+            "status": "Enviado para Toutbox",
             "status_code": response.status_code,
-            "response": response.json()
+            "resposta": response.json()
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Erro ao enviar patch: {str(e)}")

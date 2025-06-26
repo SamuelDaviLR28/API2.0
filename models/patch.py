@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, JSON
 from sqlalchemy.sql import func
-from database import Base
+from database import Base  # ou from app.database import Base, dependendo da estrutura
 
 class PatchLog(Base):
     __tablename__ = "patch_logs"

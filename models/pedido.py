@@ -1,11 +1,12 @@
-# models/pedido.py
-from sqlalchemy import Column, Integer, String, DateTime, Text
-from database import Base
+from sqlalchemy import Column, Integer, String, DateTime, JSON
+from sqlalchemy.sql import func
+from app.database import Base
 
-class Pedido(Base):
-    __tablename__ = "pedidos"  # nome da tabela no banco
+class PatchLog(Base):
+    __tablename__ = "patch_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    numero_pedido = Column(String(100), index=True)
-    data_criacao = Column(DateTime)
-    json_completo = Column(Text)
+    nfkey = Column(String(100), nullable=False)
+    courier_id = Column(String(100), nullable=True)
+    patch_body = Column(JSON, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

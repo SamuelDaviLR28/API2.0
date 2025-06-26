@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Request, Query, Depends
 import httpx
 from sqlalchemy.orm import Session
 from database import get_db
-from models.pedido import PatchLog
+from models.patch import PatchLog
 from datetime import datetime
 
 router = APIRouter()

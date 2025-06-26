@@ -5,6 +5,7 @@ from models.pedido import Pedido
 from database import get_db
 from security import verificar_api_key
 import json
+from datetime import datetime
 import traceback
 
 router = APIRouter()
@@ -15,8 +16,14 @@ async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db
         if not pedido.Itens:
             raise HTTPException(status_code=400, detail="Pedido sem itens.")
 
-        # ✅ Serializa corretamente com Pydantic v2
-        json_serializado = json.dumps(pedido.model_dump(), indent=2, ensure_ascii=False)
+        # ✅ Função para converter datetime
+        def converter(obj):
+            if isinstance(obj, datetime):
+                return obj.isoformat()
+            raise TypeError(f"Tipo {type(obj)} não é serializável")
+
+        # ✅ Serializa com suporte a datetime
+        json_serializado = json.dumps(pedido.model_dump(), indent=2, ensure_ascii=False, default=converter)
 
         print("✅ Pedido recebido:")
         print(json_serializado)

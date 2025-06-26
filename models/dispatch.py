@@ -116,3 +116,16 @@ class DispatchRequest(BaseModel):
     Itens: List[Item]
     NotaFiscal: NotaFiscal
     InfosAdicionais: InfosAdicionais
+
+from typing import List, Optional
+from datetime import datetime
+
+class Item(BaseModel):
+    id: str
+    nome: str
+
+class DispatchRequest(BaseModel):
+    NumeroPedido: str
+    CriacaoPedido: datetime
+    Itens: Optional[List[Item]]
+

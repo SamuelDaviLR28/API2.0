@@ -3,16 +3,21 @@ from sqlalchemy.orm import Session
 from models.dispatch import DispatchRequest
 from models.pedido import Pedido
 from database import get_db
+<<<<<<< HEAD
 import json
+=======
+from security import verificar_api_key
+>>>>>>> 9dd0c9c (Adiciona autenticação por API Key nas rotas sensíveis)
 import traceback
 
 router = APIRouter()
 
-@router.post("/dispatch")
+@router.post("/dispatch", dependencies=[Depends(verificar_api_key)])
 async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db)):
     try:
         if not pedido.Itens:
             raise HTTPException(status_code=400, detail="Pedido sem itens.")
+<<<<<<< HEAD
 
         # Serializa todo o JSON
         json_serializado = pedido.model_dump_json(indent=2, ensure_ascii=False)
@@ -36,3 +41,17 @@ async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db
         print("❌ Erro ao processar pedido:", str(e))
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Erro interno ao processar o pedido.")
+=======
+        pedido_salvo = Pedido(
+            numero_pedido=pedido.NumeroPedido,
+            data_criacao=pedido.CriacaoPedido,
+            json_completo=pedido.model_dump_json(indent=2, ensure_ascii=False)
+        )
+        db.add(pedido_salvo)
+        db.commit()
+        db.refresh(pedido_salvo)
+        return {"status": "Pedido salvo com sucesso", "id": pedido_salvo.id}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Erro interno ao processar o pedido.")
+>>>>>>> 9dd0c9c (Adiciona autenticação por API Key nas rotas sensíveis)

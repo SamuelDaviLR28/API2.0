@@ -34,6 +34,25 @@ async def autenticar_api_key(request: Request, call_next):
         if request.url.path.startswith(("/docs", "/openapi.json", "/favicon.ico", "/redoc")):
             return await call_next(request)
 
+from fastapi import FastAPI
+from dotenv import load_dotenv
+import os
+
+from routers import dispatch, patch, rastro, cancelamento
+
+load_dotenv()
+
+app = FastAPI(
+    title="API Integração Transportadora - Toutbox",
+    description="Insira sua chave no botão 'Authorize' para autenticar.",
+    swagger_ui_parameters={"persistAuthorization": True}
+)
+
+@app.get("/")
+def raiz():
+    return {"mensagem": "API no ar com autenticação por API Key nas rotas sensíveis."}
+
+
         chave_enviada = request.headers.get("x-api-key")
         chave_configurada = os.getenv("API_KEY")
 

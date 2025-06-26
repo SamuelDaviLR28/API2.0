@@ -1,23 +1,31 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from typing import List
+from fastapi import APIRouter, HTTPException, Query
+import httpx
 
 router = APIRouter()
 
-class PatchOperation(BaseModel):
-    op: str
-    path: str
-    value: str  # ou Union[str, int, float] se quiser aceitar outros tipos
-
 @router.patch("/patch")
-def aplicar_patch(operations: List[PatchOperation]):
+async def enviar_patch_toutbox(
+    nfkey: str = Query(..., description="Chave da Nota Fiscal"),
+    courier_id: str = Query(None, description="ID da transportadora (para pedidos via dispatch)"),
+):
     try:
-        # Exemplo de resposta simulando aplicação dos patches
-        for op in operations:
-            print(f"Aplicando operação: {op.op} no campo {op.path} com valor {op.value}")
-        
-        # Aqui você aplicaria as mudanças no banco ou objeto real
-        return {"status": "Patches aplicados com sucesso", "detalhes": [op.dict() for op in operations]}
+        url = f"http://production.toutbox.com.br/api/v1/external/api/v1/External/Order?nfkey={nfkey}"
+        if courier_id:
+            url += f"&courier_id={courier_id}"
+
+        # Exemplo de corpo do PATCH
+        patch_body = [
+            {"value": "1", "path": "/Itens/0/Frete/Transportadora/PrazoDiasUteis", "op": "replace"},
+            {"value": courier_id or "84", "path": "/Itens/0/Frete/Transportadora/id", "op": "replace"},
+        ]
+
+        async with httpx.AsyncClient() as client:
+            response = await client.patch(url, json=patch_body)
+
+        return {
+            "status_code": response.status_code,
+            "response": response.json()
+        }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao aplicar patch: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

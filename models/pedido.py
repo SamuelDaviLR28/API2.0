@@ -9,4 +9,4 @@ class Pedido(Base):
     numero_pedido = Column(String(100), nullable=False)
     cliente = Column(String(100), nullable=True)
     data_criacao = Column(DateTime(timezone=True), server_default=func.now())
-    json_completo = Column(JSON, nullable=True)  # ✅ Esse campo resolve o erro
+    json_completo = Column(JSON, nullable=True)

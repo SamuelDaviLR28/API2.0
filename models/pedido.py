@@ -1,13 +1,9 @@
-from sqlalchemy import Column, Integer, String, DateTime, JSON
-from sqlalchemy.sql import func
+from sqlalchemy import Column, Integer, String
 from database import Base
 
-
-class PatchLog(Base):
-    __tablename__ = "patch_logs"
-
+class Pedido(Base):
+    __tablename__ = "pedidos"
+    
     id = Column(Integer, primary_key=True, index=True)
-    nfkey = Column(String(100), nullable=False)
-    courier_id = Column(String(100), nullable=True)
-    patch_body = Column(JSON, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    numero = Column(String, nullable=False)
+    status = Column(String, nullable=True)

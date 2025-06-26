@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException 
 from sqlalchemy.orm import Session
 from models.dispatch import DispatchRequest
-from models.pedido import Pedido
+from models.pedido import pedido
 from database import get_db
 from security import verificar_api_key
 import json

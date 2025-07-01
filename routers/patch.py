@@ -1,49 +1,53 @@
-from fastapi import APIRouter, HTTPException, Query, Depends, Body
+from fastapi import APIRouter, HTTPException, Request, Query, Depends
 import httpx
 from sqlalchemy.orm import Session
-from datetime import datetime
-
 from database import get_db
 from models.patch import PatchLog
+from datetime import datetime
 
 router = APIRouter()
 
 @router.patch("/patch")
 async def enviar_patch_toutbox(
-    payload: dict = Body(...),  # permite envio de JSON no body via Swagger/Postman
+    request: Request,
     nfkey: str = Query(..., description="Chave da Nota Fiscal"),
     courier_id: str = Query(None, description="ID da transportadora (para pedidos via dispatch)"),
     db: Session = Depends(get_db),
 ):
     try:
-        # Montar URL da Toutbox
+        patch_body = await request.json()
+
+        # ✅ Monta URL corretamente
         url = f"http://production.toutbox.com.br/api/v1/external/api/v1/External/Order?nfkey={nfkey}"
         if courier_id:
             url += f"&courier_id={courier_id}"
 
-        # Enviar PATCH para a Toutbox
+        # ✅ Envia PATCH com application/json
         async with httpx.AsyncClient() as client:
-            response = await client.patch(url, json=payload)
+            response = await client.patch(
+                url,
+                json=patch_body,
+                headers={"Content-Type": "application/json"}
+            )
 
-        # Tentar extrair resposta como JSON, se possível
+        # ✅ Captura resposta (texto ou json)
         try:
             resposta = response.json()
         except Exception:
             resposta = response.text
 
-        # Registrar tentativa no banco
+        # ✅ Salva log no banco
         log = PatchLog(
             nfkey=nfkey,
             courier_id=courier_id,
             data_envio=datetime.utcnow(),
-            body_enviado=payload,
+            body_enviado=patch_body,
             status_code=response.status_code,
             resposta=resposta,
         )
         db.add(log)
         db.commit()
 
-        # Retornar resultado da requisição externa
         return {
             "status": "Enviado para Toutbox",
             "status_code": response.status_code,

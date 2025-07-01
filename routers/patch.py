@@ -1,22 +1,23 @@
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel, constr
+from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.orm import Session
 import httpx
-from datetime import datetime, timezone
+from datetime import datetime
 from database import get_db
-from models.patch import PatchLog  # modelo SQLAlchemy para tabela patch_logs
+from models.patch import PatchLog
 
 router = APIRouter()
 
 class PatchRequest(BaseModel):
-    nfkey: constr(min_length=44, max_length=44)
-    courier_id: constr(min_length=1)
-    sla: constr(min_length=1)  # SLA que vai no value do patch, ex: "1"
+    nfkey: str
+    courier_id: str
+    sla: str  # ex: "1"
 
-@router.post("/patch")
+@router.patch("/patch")
 async def enviar_patch(request: PatchRequest, db: Session = Depends(get_db)):
     url = f"http://production.toutbox.com.br/api/v1/external/api/v1/External/Order?nfkey={request.nfkey}&courier_id={request.courier_id}"
+
     body = [
         {
             "value": request.sla,
@@ -29,35 +30,40 @@ async def enviar_patch(request: PatchRequest, db: Session = Depends(get_db)):
         try:
             response = await client.patch(url, json=body)
 
+            # Tenta pegar resposta como JSON, se não der, pega como texto
             try:
                 resposta = response.json()
             except Exception:
                 resposta = response.text
 
-            # Salva log da requisição no banco
+            # Log da requisição no banco (mesmo se for erro)
             patch_log = PatchLog(
                 nfkey=request.nfkey,
                 courier_id=request.courier_id,
-                data_envio=datetime.now(timezone.utc),
+                data_envio=datetime.utcnow(),
                 body_enviado=body,
                 status_code=response.status_code,
                 resposta=resposta
             )
             db.add(patch_log)
             db.commit()
+            db.refresh(patch_log)
 
+            # Verifica se foi sucesso
             if response.status_code != 200:
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail={
-                        "mensagem": "Erro ao enviar PATCH para a Toutbox",
-                        "codigo": response.status_code,
-                        "resposta": resposta
-                    }
-                )
+                raise HTTPException(status_code=response.status_code, detail={
+                    "erro": "Erro na Toutbox",
+                    "resposta": resposta,
+                    "status_code": response.status_code
+                })
 
-            print(f"✔️ PATCH enviado com sucesso para {request.nfkey} | SLA: {request.sla}")
-            return {"status": "Patch enviado com sucesso", "resposta": resposta}
+            return {
+                "status": "Patch enviado com sucesso",
+                "status_code": response.status_code,
+                "resposta": resposta,
+                "log_id": patch_log.id
+            }
 
         except Exception as e:
+            db.rollback()
             raise HTTPException(status_code=500, detail=str(e))

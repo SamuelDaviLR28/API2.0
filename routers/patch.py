@@ -24,6 +24,12 @@ async def enviar_patch_toutbox(
         async with httpx.AsyncClient() as client:
             response = await client.patch(url, json=patch_body)
 
+        # Tenta decodificar o JSON, senão pega como texto
+        try:
+            resposta = response.json()
+        except Exception:
+            resposta = response.text
+
         # Salvar log da requisição/resposta
         log = PatchLog(
             nfkey=nfkey,
@@ -31,7 +37,7 @@ async def enviar_patch_toutbox(
             data_envio=datetime.utcnow(),
             body_enviado=patch_body,
             status_code=response.status_code,
-            resposta=response.json(),
+            resposta=resposta,
         )
         db.add(log)
         db.commit()
@@ -39,7 +45,7 @@ async def enviar_patch_toutbox(
         return {
             "status": "Enviado para Toutbox",
             "status_code": response.status_code,
-            "resposta": response.json()
+            "resposta": resposta
         }
 
     except Exception as e:

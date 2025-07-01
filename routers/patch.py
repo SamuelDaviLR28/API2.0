@@ -11,39 +11,31 @@ router = APIRouter()
 async def enviar_patch_toutbox(
     request: Request,
     nfkey: str = Query(..., description="Chave da Nota Fiscal"),
-    courier_id: str = Query(None, description="ID da transportadora (para pedidos via dispatch)"),
+    courier_id: str = Query(..., description="ID da transportadora"),
     db: Session = Depends(get_db),
 ):
     try:
-        patch_body = await request.json()
+        # ✅ Body JSON no formato RFC 6902
+        patch_body = await request.json()  # Deve ser uma lista com op/replace, path e value
 
-        # ✅ Monta URL corretamente
-        url = f"http://production.toutbox.com.br/api/v1/external/api/v1/External/Order?nfkey={nfkey}"
-        if courier_id:
-            url += f"&courier_id={courier_id}"
+        url = f"http://production.toutbox.com.br/api/v1/external/api/v1/External/Order?nfkey={nfkey}&courier_id={courier_id}"
 
-        # ✅ Envia PATCH com application/json
         async with httpx.AsyncClient() as client:
-            response = await client.patch(
-                url,
-                json=patch_body,
-                headers={"Content-Type": "application/json"}
-            )
+            response = await client.patch(url, json=patch_body)
 
-        # ✅ Captura resposta (texto ou json)
         try:
             resposta = response.json()
         except Exception:
             resposta = response.text
 
-        # ✅ Salva log no banco
+        # ✅ Salvar log no banco
         log = PatchLog(
             nfkey=nfkey,
             courier_id=courier_id,
             data_envio=datetime.utcnow(),
             body_enviado=patch_body,
             status_code=response.status_code,
-            resposta=resposta,
+            resposta=resposta
         )
         db.add(log)
         db.commit()

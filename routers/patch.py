@@ -1,50 +1,83 @@
-from fastapi import APIRouter, Request, Query, Depends, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
+from typing import List, Optional
 from sqlalchemy.orm import Session
+import httpx
+from datetime import datetime
 from database import get_db
 from models.patch import PatchLog
-from datetime import datetime
-import httpx
 
 router = APIRouter()
 
-@router.patch("/patch")
-async def enviar_patch_toutbox(
-    request: Request,
-    nfkey: str = Query(..., description="Chave da Nota Fiscal"),
-    courier_id: str = Query(..., description="ID da transportadora"),
+class PatchItem(BaseModel):
+    nfkey: str
+    courier_id: Optional[str] = None
+    sla: str = "1"  # pode parametrizar o SLA se quiser
+
+@router.post("/patch/batch")
+async def enviar_patch_batch(
+    items: List[PatchItem],
     db: Session = Depends(get_db),
 ):
-    try:
-        patch_body = await request.json()  # Espera lista de operações, ex: [{"value":"1", "path":"/Itens/0/Frete/Transportadora/PrazoDiasUteis", "op":"replace"}]
+    resultados = []
+    async with httpx.AsyncClient() as client:
+        for item in items:
+            if item.courier_id:
+                url = f"http://production.toutbox.com.br/api/v1/external/api/v1/External/Order?nfkey={item.nfkey}&courier_id={item.courier_id}"
+                body = [
+                    {
+                        "value": item.sla,
+                        "path": "/Itens/0/Frete/Transportadora/PrazoDiasUteis",
+                        "op": "replace"
+                    }
+                ]
+            else:
+                url = f"http://production.toutbox.com.br/api/v1/external/api/v1/External/Order?nfkey={item.nfkey}"
+                body = [
+                    {
+                        "value": item.sla,
+                        "path": "/Itens/0/Frete/Transportadora/PrazoDiasUteis",
+                        "op": "replace"
+                    },
+                    {
+                        "value": "84",
+                        "path": "/Itens/0/Frete/Transportadora/id",
+                        "op": "replace"
+                    }
+                ]
 
-        # Monta a URL com nfkey e courier_id
-        url = f"http://production.toutbox.com.br/api/v1/external/api/v1/External/Order?nfkey={nfkey}&courier_id={courier_id}"
+            try:
+                response = await client.patch(url, json=body)
 
-        async with httpx.AsyncClient() as client:
-            response = await client.patch(url, json=patch_body)
+                try:
+                    resposta = response.json()
+                except Exception:
+                    resposta = response.text
 
-        try:
-            resposta_json = response.json()
-        except Exception:
-            resposta_json = response.text
+                # Salvar log no banco
+                log = PatchLog(
+                    nfkey=item.nfkey,
+                    courier_id=item.courier_id,
+                    data_envio=datetime.utcnow(),
+                    body_enviado=body,
+                    status_code=response.status_code,
+                    resposta=resposta,
+                )
+                db.add(log)
+                db.commit()
 
-        # Salvar log no banco (se tiver o modelo e tabela)
-        log = PatchLog(
-            nfkey=nfkey,
-            courier_id=courier_id,
-            data_envio=datetime.utcnow(),
-            body_enviado=patch_body,
-            status_code=response.status_code,
-            resposta=resposta_json,
-        )
-        db.add(log)
-        db.commit()
+                resultados.append({
+                    "nfkey": item.nfkey,
+                    "courier_id": item.courier_id,
+                    "status_code": response.status_code,
+                    "resposta": resposta
+                })
 
-        return {
-            "status": "Enviado para Toutbox",
-            "status_code": response.status_code,
-            "resposta": resposta_json
-        }
+            except Exception as e:
+                resultados.append({
+                    "nfkey": item.nfkey,
+                    "courier_id": item.courier_id,
+                    "error": str(e)
+                })
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao enviar patch: {str(e)}")
+    return {"resultados": resultados}

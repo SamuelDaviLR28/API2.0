@@ -1,18 +1,18 @@
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, constr
 from typing import Optional
 from sqlalchemy.orm import Session
 import httpx
-from datetime import datetime
+from datetime import datetime, timezone
 from database import get_db
 from models.patch import PatchLog  # modelo SQLAlchemy para tabela patch_logs
 
 router = APIRouter()
 
 class PatchRequest(BaseModel):
-    nfkey: str
-    courier_id: str
-    sla: str  # SLA que vai no value do patch, ex: "1"
+    nfkey: constr(min_length=44, max_length=44)
+    courier_id: constr(min_length=1)
+    sla: constr(min_length=1)  # SLA que vai no value do patch, ex: "1"
 
 @router.post("/patch")
 async def enviar_patch(request: PatchRequest, db: Session = Depends(get_db)):
@@ -28,6 +28,7 @@ async def enviar_patch(request: PatchRequest, db: Session = Depends(get_db)):
     async with httpx.AsyncClient() as client:
         try:
             response = await client.patch(url, json=body)
+
             try:
                 resposta = response.json()
             except Exception:
@@ -37,7 +38,7 @@ async def enviar_patch(request: PatchRequest, db: Session = Depends(get_db)):
             patch_log = PatchLog(
                 nfkey=request.nfkey,
                 courier_id=request.courier_id,
-                data_envio=datetime.utcnow(),
+                data_envio=datetime.now(timezone.utc),
                 body_enviado=body,
                 status_code=response.status_code,
                 resposta=resposta
@@ -46,8 +47,16 @@ async def enviar_patch(request: PatchRequest, db: Session = Depends(get_db)):
             db.commit()
 
             if response.status_code != 200:
-                raise HTTPException(status_code=response.status_code, detail=f"Erro na Toutbox: {resposta}")
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail={
+                        "mensagem": "Erro ao enviar PATCH para a Toutbox",
+                        "codigo": response.status_code,
+                        "resposta": resposta
+                    }
+                )
 
+            print(f"✔️ PATCH enviado com sucesso para {request.nfkey} | SLA: {request.sla}")
             return {"status": "Patch enviado com sucesso", "resposta": resposta}
 
         except Exception as e:

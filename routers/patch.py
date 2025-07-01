@@ -12,7 +12,7 @@ router = APIRouter()
 class PatchRequest(BaseModel):
     nfkey: str
     courier_id: str
-    sla: str  # ex: "1"
+    sla: str
 
 @router.patch("/patch")
 async def enviar_patch(request: PatchRequest, db: Session = Depends(get_db)):
@@ -29,14 +29,12 @@ async def enviar_patch(request: PatchRequest, db: Session = Depends(get_db)):
     async with httpx.AsyncClient() as client:
         try:
             response = await client.patch(url, json=body)
-
-            # Tenta pegar resposta como JSON, se não der, pega como texto
             try:
                 resposta = response.json()
             except Exception:
                 resposta = response.text
 
-            # Log da requisição no banco (mesmo se for erro)
+            # LOG no banco
             patch_log = PatchLog(
                 nfkey=request.nfkey,
                 courier_id=request.courier_id,
@@ -49,7 +47,8 @@ async def enviar_patch(request: PatchRequest, db: Session = Depends(get_db)):
             db.commit()
             db.refresh(patch_log)
 
-            # Verifica se foi sucesso
+            print(f"🟢 Patch registrado no banco com ID {patch_log.id}")
+
             if response.status_code != 200:
                 raise HTTPException(status_code=response.status_code, detail={
                     "erro": "Erro na Toutbox",

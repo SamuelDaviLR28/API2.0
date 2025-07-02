@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Header, HTTPException, Request
 from sqlalchemy.orm import Session
-from typing import List, Optional
-from app.database import SessionLocal  # Corrigido para importar da pasta app
-from app.models.patch import PatchUpdate
+from typing import Optional
+from database import SessionLocal              # ✅ sem app.
+from models.patch import PatchUpdate           # ✅ sem app.
 import httpx
 import os
+
 
 router = APIRouter()
 

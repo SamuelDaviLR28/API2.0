@@ -1,68 +1,68 @@
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
+from fastapi import APIRouter, Header, HTTPException, Request
 from sqlalchemy.orm import Session
+from typing import List, Optional
+from app.database import SessionLocal
+from app.models.patch import PatchUpdate
 import httpx
-from datetime import datetime
-from database import get_db
-from models.patch import PatchLog
+import os
 
 router = APIRouter()
 
-class PatchRequest(BaseModel):
-    nfkey: str
-    sla: str  # exemplo: "1"
+# Função para obter DB
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
+# PATCH manual com corpo JSON Patch
 @router.patch("/patch")
-async def enviar_patch(request: PatchRequest, db: Session = Depends(get_db)):
-    url = f"http://production.toutbox.com.br/api/v1/external/api/v1/External/Order?nfkey={request.nfkey}&courier_id=84"
+async def enviar_patch_toutbox(
+    request: Request,
+    x_api_key: Optional[str] = Header(None)
+):
+    db: Session = next(get_db())
 
-    body = [
-        {
-            "value": "0",
-            "path": "/Itens/0/Frete/Transportadora/ValorFrete",
-            "op": "replace"
-        },
-        {
-            "value": request.sla,
-            "path": "/Itens/0/Frete/Transportadora/PrazoDiasUteis",
-            "op": "replace"
-        }
-    ]
+    # Lê JSON Patch enviado
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="JSON inválido.")
 
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.patch(url, json=body)
+    # Busca nfkey no path do JSON
+    nfkey = request.query_params.get("nfkey")
+    if not nfkey:
+        raise HTTPException(status_code=400, detail="Parâmetro 'nfkey' é obrigatório.")
 
-            try:
-                resposta = response.json()
-            except Exception:
-                resposta = response.text
+    # Monta URL da Toutbox
+    url = f"http://production.toutbox.com.br/api/v1/external/api/v1/External/Order?nfkey={nfkey}&courier_id=84"
 
-            patch_log = PatchLog(
-                nfkey=request.nfkey,
-                courier_id="84",
-                data_envio=datetime.utcnow(),
-                body_enviado=body,
-                status_code=response.status_code,
-                resposta=resposta
-            )
-            db.add(patch_log)
-            db.commit()
-            db.refresh(patch_log)
+    # Envia PATCH
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.patch(url, json=payload, timeout=10)
+        
+        status = "sucesso" if response.status_code < 300 else "erro"
+        response_text = response.text
 
-            if response.status_code != 200:
-                raise HTTPException(status_code=response.status_code, detail={
-                    "erro": "Erro na Toutbox",
-                    "resposta": resposta,
-                    "status_code": response.status_code
-                })
+    except Exception as e:
+        status = "erro"
+        response_text = str(e)
 
-            return {
-                "status": "Patch enviado com sucesso",
-                "resposta": resposta,
-                "log_id": patch_log.id
-            }
+    # Salva no banco
+    novo_patch = PatchUpdate(
+        nfkey=nfkey,
+        payload=payload,
+        status=status,
+        response=response_text
+    )
+    db.add(novo_patch)
+    db.commit()
 
-        except Exception as e:
-            db.rollback()
-            raise HTTPException(status_code=500, detail=str(e))
+    # Retorna resposta
+    return {
+        "nfkey": nfkey,
+        "status_envio": status,
+        "resposta_toutbox": response_text
+    }

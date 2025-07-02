@@ -1,14 +1,13 @@
-from sqlalchemy import Column, Integer, String, JSON, DateTime
+from sqlalchemy import Column, Integer, String, Text, DateTime, JSON
 from sqlalchemy.sql import func
-from database import Base
+from app.database import Base
 
-class PatchLog(Base):
-    __tablename__ = "patch_logs"
+class PatchUpdate(Base):
+    __tablename__ = "patch_updates"
 
     id = Column(Integer, primary_key=True, index=True)
-    nfkey = Column(String(100), nullable=False)
-    courier_id = Column(String(100))
-    data_envio = Column(DateTime(timezone=True), server_default=func.now())
-    body_enviado = Column(JSON, nullable=False)
-    status_code = Column(Integer)
-    resposta = Column(JSON)
+    nfkey = Column(String(50), nullable=False, index=True)
+    payload = Column(JSON, nullable=False)
+    status = Column(String(20))
+    response = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

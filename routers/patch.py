@@ -16,9 +16,8 @@ class PatchRequest(BaseModel):
 
 @router.patch("/patch")
 async def enviar_patch(request: PatchRequest, db: Session = Depends(get_db)):
-    # Define a URL e o corpo com base na origem (dispatch ou manual)
     if request.courier_id:
-        # Pedido veio via DISPATCH → usa courier_id na URL
+        # DISPATCH: usamos courier_id na URL e no body vai só o prazo
         url = f"http://production.toutbox.com.br/api/v1/external/api/v1/External/Order?nfkey={request.nfkey}&courier_id={request.courier_id}"
         body = [
             {
@@ -28,7 +27,7 @@ async def enviar_patch(request: PatchRequest, db: Session = Depends(get_db)):
             }
         ]
     else:
-        # Pedido veio via MANUAL (planilha/XML) → não usa courier_id na URL, mas envia no body
+        # MANUAL: courier_id fica no body, não vai na URL
         url = f"http://production.toutbox.com.br/api/v1/external/api/v1/External/Order?nfkey={request.nfkey}"
         body = [
             {
@@ -37,7 +36,7 @@ async def enviar_patch(request: PatchRequest, db: Session = Depends(get_db)):
                 "op": "replace"
             },
             {
-                "value": "84",  # ID fixo da transportadora (Alpha)
+                "value": "84",
                 "path": "/Itens/0/Frete/Transportadora/id",
                 "op": "replace"
             }
@@ -46,14 +45,11 @@ async def enviar_patch(request: PatchRequest, db: Session = Depends(get_db)):
     async with httpx.AsyncClient() as client:
         try:
             response = await client.patch(url, json=body)
-
-            # Captura resposta
             try:
                 resposta = response.json()
             except Exception:
                 resposta = response.text
 
-            # Salva log no banco
             patch_log = PatchLog(
                 nfkey=request.nfkey,
                 courier_id=request.courier_id,
@@ -83,3 +79,4 @@ async def enviar_patch(request: PatchRequest, db: Session = Depends(get_db)):
         except Exception as e:
             db.rollback()
             raise HTTPException(status_code=500, detail=str(e))
+

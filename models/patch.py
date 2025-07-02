@@ -1,8 +1,6 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime, JSON
 from sqlalchemy.sql import func
-from app.database import Base
-from database import SessionLocal
-
+from app.database import Base  
 
 class PatchUpdate(Base):
     __tablename__ = "patch_updates"

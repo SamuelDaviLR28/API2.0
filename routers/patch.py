@@ -1,15 +1,13 @@
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, Header, HTTPException, Request, Body
 from sqlalchemy.orm import Session
-from typing import Optional
-from database import SessionLocal              # ✅ sem app.
-from models.patch import PatchUpdate           # ✅ sem app.
+from typing import List, Optional, Dict, Any
+from app.database import SessionLocal
+from app.models.patch import PatchUpdate
 import httpx
 import os
 
-
 router = APIRouter()
 
-# Função para obter conexão com o banco
 def get_db():
     db = SessionLocal()
     try:
@@ -17,29 +15,21 @@ def get_db():
     finally:
         db.close()
 
-# Rota PATCH manual no formato JSON Patch (RFC 6902)
 @router.patch("/patch")
 async def enviar_patch_toutbox(
-    request: Request,
+    payload: List[Dict[str, Any]] = Body(..., example=[
+        {"value": "1", "path": "/Itens/0/Frete/Transportadora/PrazoDiasUteis", "op": "replace"}
+    ]),
+    nfkey: str = "",  # será extraído da query string (?nfkey=...)
     x_api_key: Optional[str] = Header(None)
 ):
-    db: Session = next(get_db())
-
-    # Tenta carregar o corpo como JSON Patch
-    try:
-        payload = await request.json()
-    except Exception:
-        raise HTTPException(status_code=400, detail="JSON inválido.")
-
-    # Obtém a chave nfkey da URL
-    nfkey = request.query_params.get("nfkey")
     if not nfkey:
         raise HTTPException(status_code=400, detail="Parâmetro 'nfkey' é obrigatório.")
 
-    # URL da API externa (Toutbox)
+    db: Session = next(get_db())
+
     url = f"http://production.toutbox.com.br/api/v1/external/api/v1/External/Order?nfkey={nfkey}&courier_id=84"
 
-    # Envia PATCH
     try:
         async with httpx.AsyncClient() as client:
             response = await client.patch(url, json=payload, timeout=10)
@@ -51,7 +41,6 @@ async def enviar_patch_toutbox(
         status = "erro"
         response_text = str(e)
 
-    # Salva no banco de dados
     novo_patch = PatchUpdate(
         nfkey=nfkey,
         payload=payload,
@@ -61,7 +50,6 @@ async def enviar_patch_toutbox(
     db.add(novo_patch)
     db.commit()
 
-    # Retorna resposta
     return {
         "nfkey": nfkey,
         "status_envio": status,

@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from typing import Optional
 import httpx
 from datetime import datetime
 from database import get_db
@@ -11,12 +10,11 @@ router = APIRouter()
 
 class PatchRequest(BaseModel):
     nfkey: str
-    sla: str  # ex: "1"
+    sla: str  # exemplo: "1"
 
 @router.patch("/patch")
 async def enviar_patch(request: PatchRequest, db: Session = Depends(get_db)):
-    # URL sem courier_id porque o pedido foi enviado via XML/Planilha
-    url = f"http://production.toutbox.com.br/api/v1/external/api/v1/External/Order?nfkey={request.nfkey}"
+    url = f"http://production.toutbox.com.br/api/v1/external/api/v1/External/Order?nfkey={request.nfkey}&courier_id=84"
 
     body = [
         {
@@ -27,11 +25,6 @@ async def enviar_patch(request: PatchRequest, db: Session = Depends(get_db)):
         {
             "value": request.sla,
             "path": "/Itens/0/Frete/Transportadora/PrazoDiasUteis",
-            "op": "replace"
-        },
-        {
-            "value": "84",
-            "path": "/Itens/0/Frete/Transportadora/id",
             "op": "replace"
         }
     ]
@@ -45,10 +38,9 @@ async def enviar_patch(request: PatchRequest, db: Session = Depends(get_db)):
             except Exception:
                 resposta = response.text
 
-            # Log no banco de dados
             patch_log = PatchLog(
                 nfkey=request.nfkey,
-                courier_id="84",  # fixo porque foi manual
+                courier_id="84",
                 data_envio=datetime.utcnow(),
                 body_enviado=body,
                 status_code=response.status_code,

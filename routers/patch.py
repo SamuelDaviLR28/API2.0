@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Header, HTTPException, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from database import SessionLocal
+from app.database import SessionLocal  # Corrigido para importar da pasta app
 from app.models.patch import PatchUpdate
 import httpx
 import os
 
 router = APIRouter()
 
-# Função para obter DB
+# Função para obter conexão com o banco
 def get_db():
     db = SessionLocal()
     try:
@@ -16,7 +16,7 @@ def get_db():
     finally:
         db.close()
 
-# PATCH manual com corpo JSON Patch
+# Rota PATCH manual no formato JSON Patch (RFC 6902)
 @router.patch("/patch")
 async def enviar_patch_toutbox(
     request: Request,
@@ -24,25 +24,25 @@ async def enviar_patch_toutbox(
 ):
     db: Session = next(get_db())
 
-    # Lê JSON Patch enviado
+    # Tenta carregar o corpo como JSON Patch
     try:
         payload = await request.json()
     except Exception:
         raise HTTPException(status_code=400, detail="JSON inválido.")
 
-    # Busca nfkey no path do JSON
+    # Obtém a chave nfkey da URL
     nfkey = request.query_params.get("nfkey")
     if not nfkey:
         raise HTTPException(status_code=400, detail="Parâmetro 'nfkey' é obrigatório.")
 
-    # Monta URL da Toutbox
+    # URL da API externa (Toutbox)
     url = f"http://production.toutbox.com.br/api/v1/external/api/v1/External/Order?nfkey={nfkey}&courier_id=84"
 
     # Envia PATCH
     try:
         async with httpx.AsyncClient() as client:
             response = await client.patch(url, json=payload, timeout=10)
-        
+
         status = "sucesso" if response.status_code < 300 else "erro"
         response_text = response.text
 
@@ -50,7 +50,7 @@ async def enviar_patch_toutbox(
         status = "erro"
         response_text = str(e)
 
-    # Salva no banco
+    # Salva no banco de dados
     novo_patch = PatchUpdate(
         nfkey=nfkey,
         payload=payload,

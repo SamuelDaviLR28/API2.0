@@ -1,58 +1,54 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from typing import Optional
 from sqlalchemy.orm import Session
+from typing import Optional
 import httpx
 from datetime import datetime
 from database import get_db
-from models.patch import PatchLog  # modelo SQLAlchemy para tabela patch_logs
+from models.patch import PatchLog
 
 router = APIRouter()
 
 class PatchRequest(BaseModel):
     nfkey: str
     sla: str  # ex: "1"
-    courier_id: Optional[str] = None  # se vier, foi via dispatch; senão, manual
 
 @router.patch("/patch")
 async def enviar_patch(request: PatchRequest, db: Session = Depends(get_db)):
-    if request.courier_id:
-        # DISPATCH: usamos courier_id na URL e no body vai só o prazo
-        url = f"http://production.toutbox.com.br/api/v1/external/api/v1/External/Order?nfkey={request.nfkey}&courier_id={request.courier_id}"
-        body = [
-            {
-                "value": request.sla,
-                "path": "/Itens/0/Frete/Transportadora/PrazoDiasUteis",
-                "op": "replace"
-            }
-        ]
-    else:
-        # MANUAL: courier_id fica no body, não vai na URL
-        url = f"http://production.toutbox.com.br/api/v1/external/api/v1/External/Order?nfkey={request.nfkey}"
-        body = [
-            {
-                "value": request.sla,
-                "path": "/Itens/0/Frete/Transportadora/PrazoDiasUteis",
-                "op": "replace"
-            },
-            {
-                "value": "84",
-                "path": "/Itens/0/Frete/Transportadora/id",
-                "op": "replace"
-            }
-        ]
+    # URL sem courier_id porque o pedido foi enviado via XML/Planilha
+    url = f"http://production.toutbox.com.br/api/v1/external/api/v1/External/Order?nfkey={request.nfkey}"
+
+    body = [
+        {
+            "value": "0",
+            "path": "/Itens/0/Frete/Transportadora/ValorFrete",
+            "op": "replace"
+        },
+        {
+            "value": request.sla,
+            "path": "/Itens/0/Frete/Transportadora/PrazoDiasUteis",
+            "op": "replace"
+        },
+        {
+            "value": "84",
+            "path": "/Itens/0/Frete/Transportadora/id",
+            "op": "replace"
+        }
+    ]
 
     async with httpx.AsyncClient() as client:
         try:
             response = await client.patch(url, json=body)
+
             try:
                 resposta = response.json()
             except Exception:
                 resposta = response.text
 
+            # Log no banco de dados
             patch_log = PatchLog(
                 nfkey=request.nfkey,
-                courier_id=request.courier_id,
+                courier_id="84",  # fixo porque foi manual
                 data_envio=datetime.utcnow(),
                 body_enviado=body,
                 status_code=response.status_code,
@@ -71,7 +67,6 @@ async def enviar_patch(request: PatchRequest, db: Session = Depends(get_db)):
 
             return {
                 "status": "Patch enviado com sucesso",
-                "status_code": response.status_code,
                 "resposta": resposta,
                 "log_id": patch_log.id
             }
@@ -79,4 +74,3 @@ async def enviar_patch(request: PatchRequest, db: Session = Depends(get_db)):
         except Exception as e:
             db.rollback()
             raise HTTPException(status_code=500, detail=str(e))
-

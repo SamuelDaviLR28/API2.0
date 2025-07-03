@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Request, Header, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
-from app.database import SessionLocal
-from app.models.rastro import Rastro
+from database import SessionLocal
+from models.rastro import Rastro
+
 import httpx
 
 router = APIRouter()

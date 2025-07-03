@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Header, HTTPException, Request, Body
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
-from app.database import SessionLocal
-from app.models.patch import PatchUpdate
+from database import SessionLocal
+from models.patch import PatchUpdate
 import httpx
 import os
 

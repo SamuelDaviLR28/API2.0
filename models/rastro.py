@@ -1,48 +1,13 @@
-from pydantic import BaseModel, HttpUrl
-from typing import List, Optional
-from datetime import datetime
+from sqlalchemy import Column, Integer, String, Text, DateTime, JSON
+from sqlalchemy.sql import func
+from app.database import Base  # ajuste conforme sua estrutura de projeto
 
-class Geo(BaseModel):
-    lat: float
-    long: float
+class Rastro(Base):
+    __tablename__ = "rastros"
 
-class File(BaseModel):
-    url: HttpUrl
-    description: Optional[str]
-    fileType: Optional[str]
-
-class Vehicle(BaseModel):
-    manufacturer: Optional[str]
-    model: Optional[str]
-    color: Optional[str]
-    licensePlate: Optional[str]
-
-class Driver(BaseModel):
-    name: Optional[str]
-    phone: Optional[str]
-    driversLicense: Optional[str]
-    document: Optional[str]
-    vehicle: Optional[Vehicle]
-
-class Event(BaseModel):
-    eventCode: str
-    description: str
-    date: datetime
-    address: Optional[str]
-    number: Optional[str]
-    city: Optional[str]
-    state: Optional[str]
-    geo: Optional[Geo]
-    files: Optional[List[File]]
-    driver: Optional[Driver]
-
-class EventData(BaseModel):
-    trackingNumber: Optional[str]
-    orderId: Optional[str]
-    nfKey: Optional[str]
-    CourierId: Optional[int]
-    additionalInfo: Optional[dict]
-    events: List[Event]
-
-class RastroEvent(BaseModel):
-    eventsData: List[EventData]
+    id = Column(Integer, primary_key=True, index=True)
+    nfkey = Column(String(50), nullable=False, index=True)
+    payload = Column(JSON, nullable=False)  # body enviado
+    status = Column(String(20))  # sucesso ou erro
+    response = Column(Text)  # resposta da Toutbox (ou erro)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

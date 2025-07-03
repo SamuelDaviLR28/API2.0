@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime, JSON
 from sqlalchemy.sql import func
-from app.database import Base  # ou from database import Base se estiver fora da pasta `app`
+from database import Base
+
 
 class Rastro(Base):
     __tablename__ = "rastros"

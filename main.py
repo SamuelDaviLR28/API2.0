@@ -10,6 +10,9 @@ load_dotenv()
 # Importação das rotas
 from routers import dispatch, patch, rastro, cancelamento
 
+# Importa o agendador
+from utils.scheduler import start as start_scheduler
+
 app = FastAPI(
     title="API Integração Transportadora - Toutbox",
     description="Insira sua chave no botão 'Authorize' para autenticar.",
@@ -31,19 +34,16 @@ api_key_header = APIKeyHeader(name="x-api-key", auto_error=False)
 @app.middleware("http")
 async def autenticar_api_key(request: Request, call_next):
     try:
-        # Rotas públicas (sem proteção)
+        # Rotas públicas
         rotas_livres = ("/", "/docs", "/openapi.json", "/favicon.ico", "/redoc")
         if request.url.path in rotas_livres:
             return await call_next(request)
 
-        # Apenas protege rotas sensíveis
+        # Rotas sensíveis com proteção
         rotas_sensiveis = ("/dispatch", "/patch", "/rastro", "/cancelamento")
         if any(request.url.path.startswith(r) for r in rotas_sensiveis):
             chave_enviada = request.headers.get("x-api-key")
             chave_configurada = os.getenv("API_KEY")
-
-            print("🔍 Header recebido:", repr(chave_enviada))
-            print("🔐 Variável API_KEY:", repr(chave_configurada))
 
             if not chave_configurada:
                 raise HTTPException(status_code=500, detail="Variável de ambiente API_KEY não configurada.")
@@ -57,7 +57,13 @@ async def autenticar_api_key(request: Request, call_next):
         print("🔥 Erro interno:", repr(e))
         raise HTTPException(status_code=500, detail="Erro interno ao processar o pedido.")
 
-# Rota de teste
+# Evento de inicialização para o agendador automático
+@app.on_event("startup")
+async def iniciar_agendador():
+    print("🚀 Iniciando agendador de tarefas automáticas...")
+    start_scheduler()
+
+# Rota raiz
 @app.get("/")
 def raiz():
     return {"mensagem": "API no ar com autenticação por API Key nas rotas sensíveis."}

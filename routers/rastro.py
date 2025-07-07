@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, Header, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
-ffrom database import SessionLocal
+from database import SessionLocal
 from models.rastro import Rastro
 
 

@@ -1,9 +1,8 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime, Float
 from sqlalchemy.sql import func
-from database import Base 
+from database import Base
 
-
-class RastroEvent(Base):
+class Rastro(Base):
     __tablename__ = "rastros"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -23,5 +22,4 @@ class RastroEvent(Base):
     file_url = Column(Text)
     file_description = Column(Text)
     file_type = Column(String(20))
-    enviado = Column(String(10), default="nao")  # sim ou nao
     created_at = Column(DateTime(timezone=True), server_default=func.now())

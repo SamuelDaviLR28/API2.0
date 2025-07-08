@@ -2,7 +2,8 @@ import os
 import requests
 from sqlalchemy.orm import Session
 from database import SessionLocal
-from models.patch import Patch
+from models.patch import PatchUpdate
+
 
 def enviar_patches_pendentes():
     db: Session = SessionLocal()

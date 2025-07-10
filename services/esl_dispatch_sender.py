@@ -15,7 +15,8 @@ def enviar_dispatch_para_esl():
 
         for pedido in pedidos_pendentes:
             try:
-                response = requests.post(ESL_DISPATCH_URL, json=pedido.payload)
+               response = requests.post(ESL_DISPATCH_URL, json=json.loads(pedido.json_completo))
+
 
                 if response.status_code in [200, 201]:
                     pedido.status = 'enviado'

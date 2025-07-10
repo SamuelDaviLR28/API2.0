@@ -35,7 +35,7 @@ def enviar_rastros_pendentes():
     rastros = db.query(Rastro).filter(Rastro.enviado == False).all()
 
     if not rastros:
-        print( "Nenhum rastro pendente.")
+        print("ℹ️ Nenhum rastro pendente.")
         return
 
     for rastro in rastros:

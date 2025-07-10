@@ -27,13 +27,13 @@ def enviar_patches_pendentes():
                 patch.status = "enviado"
                 patch.response = response.text
                 db.commit()
-                print(f"✅ PATCH enviado com sucesso: {nfkey}")
+                print(f" PATCH enviado com sucesso: {nfkey}")
             else:
                 patch.status = f"erro {response.status_code}"
                 patch.response = response.text
                 db.commit()
-                print(f"❌ Erro ao enviar PATCH {nfkey}: {response.status_code} - {response.text}")
+                print(f" Erro ao enviar PATCH {nfkey}: {response.status_code} - {response.text}")
 
         except Exception as e:
-            print(f"🔥 Erro ao processar PATCH {patch.nfkey}: {e}")
+            print(f" Erro ao processar PATCH {patch.nfkey}: {e}")
     db.close()

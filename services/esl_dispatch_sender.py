@@ -1,6 +1,6 @@
 import requests
 from database import SessionLocal
-from models.dispatch import Dispatch
+from models.pedido import Pedido 
 
 ESL_DISPATCH_URL = "https://link-da-esl.com/api/dispatch"  # Substitua pelo link real
 

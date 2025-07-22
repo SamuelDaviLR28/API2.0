@@ -35,7 +35,7 @@ def enviar_rastros_pendentes():
     rastros = db.query(Rastro).filter(Rastro.enviado == False).all()
 
     if not rastros:
-        print("ℹ️ Nenhum rastro pendente.")
+        print(" Nenhum rastro pendente.")
         return
 
     for rastro in rastros:
@@ -50,10 +50,10 @@ def enviar_rastros_pendentes():
 
             if response.status_code in [200, 204]:
                 rastro.enviado = True
-                db.commit()
                 print(f" RASTRO enviado com sucesso: {rastro.nfkey}")
             else:
                 print(f" Erro ao enviar RASTRO {rastro.nfkey}: {response.status_code} - {response.text}")
+            db.commit()
         except Exception as e:
             print(f" Erro ao processar RASTRO {rastro.nfkey}: {e}")
     db.close()

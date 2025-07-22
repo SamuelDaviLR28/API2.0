@@ -9,7 +9,7 @@ def enviar_patches_pendentes():
     patches = db.query(PatchUpdate).filter(PatchUpdate.status != "enviado").all()
 
     if not patches:
-        print("ℹ️ Nenhum patch pendente.")
+        print(" Nenhum patch pendente.")
         return
 
     for patch in patches:
@@ -23,17 +23,20 @@ def enviar_patches_pendentes():
 
             response = requests.patch(url, json=patch.payload, headers=headers)
 
+            patch.response = response.text
             if response.status_code in [200, 204]:
                 patch.status = "enviado"
-                patch.response = response.text
-                db.commit()
                 print(f" PATCH enviado com sucesso: {nfkey}")
             else:
                 patch.status = f"erro {response.status_code}"
-                patch.response = response.text
-                db.commit()
                 print(f" Erro ao enviar PATCH {nfkey}: {response.status_code} - {response.text}")
 
+            db.commit()
+
         except Exception as e:
-            print(f" Erro ao processar PATCH {patch.nfkey}: {e}")
+            patch.status = 'erro'
+            patch.response = str(e)
+            db.commit()
+            print(f" Erro ao processar PATCH {nfkey}: {e}")
+
     db.close()

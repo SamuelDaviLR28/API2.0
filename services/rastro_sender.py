@@ -11,7 +11,7 @@ def montar_payload(rastro: Rastro):
         "events": [{
             "eventCode": rastro.event_code,
             "description": rastro.description,
-            "date": rastro.date.isoformat(),
+            "date": rastro.date.isoformat() if rastro.date else None,
             "address": rastro.address,
             "number": rastro.number,
             "city": rastro.city,

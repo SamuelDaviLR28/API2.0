@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime, Float
 from sqlalchemy.sql import func
 from database import Base
+from sqlalchemy import JSON 
 
 class Rastro(Base):
     __tablename__ = "rastros"
@@ -25,3 +26,4 @@ class Rastro(Base):
     enviado = Column(Integer, default=0)  # 0 = não enviado, 1 = enviado
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    payload = Column(JSON, nullable=True)

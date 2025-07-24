@@ -1,15 +1,14 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Float
+from sqlalchemy import Column, Integer, String, Text, DateTime, Float, JSON 
 from sqlalchemy.sql import func
 from database import Base
-from sqlalchemy import JSON 
 
 class Rastro(Base):
     __tablename__ = "rastros"
 
     id = Column(Integer, primary_key=True, index=True)
     nfkey = Column(String(50), nullable=False, index=True)
-    courier_id = Column(Integer, nullable=False)
-    event_code = Column(String(10), nullable=False)
+    courier_id = Column(Integer, nullable=True)
+    event_code = Column(String(10), nullable=True)
     description = Column(Text, nullable=True)
     date = Column(DateTime(timezone=True), nullable=True)
     address = Column(Text, nullable=True)
@@ -24,6 +23,8 @@ class Rastro(Base):
     file_description = Column(Text, nullable=True)
     file_type = Column(String(20), nullable=True)
     enviado = Column(Integer, default=0)  # 0 = não enviado, 1 = enviado
+    status = Column(String(20), nullable=True)  # sucesso | erro
+    response = Column(Text, nullable=True)
+    payload = Column(JSON, nullable=True)  # ← Adicionado para armazenar o JSON original
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    payload = Column(JSON, nullable=True)

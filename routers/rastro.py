@@ -15,6 +15,7 @@ def get_db():
     finally:
         db.close()
 
+
 @router.post("/rastro")
 async def enviar_rastro_toutbox(
     request: Request,
@@ -60,3 +61,13 @@ async def enviar_rastro_toutbox(
         "status_envio": status,
         "resposta_toutbox": resposta
     }
+
+
+# Alias da rota para ESL
+@router.post("/docs/api/esl/eventos")
+async def receber_evento_esl_alias(
+    request: Request,
+    db: Session = Depends(get_db),
+    x_api_key: Optional[str] = Header(None)
+):
+    return await enviar_rastro_toutbox(request, db, x_api_key)

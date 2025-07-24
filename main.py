@@ -3,9 +3,11 @@ from fastapi.security.api_key import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
+import traceback
 
 # Carrega variáveis do .env
 load_dotenv()
+print("🔑 API_KEY carregada:", os.getenv("API_KEY"))  # Remover após testes
 
 # Importação das rotas
 from routers import dispatch, patch, rastro, cancelamento
@@ -53,8 +55,9 @@ async def autenticar_api_key(request: Request, call_next):
         return await call_next(request)
 
     except Exception as e:
-        print("🔥 Erro interno:", repr(e))
-        raise HTTPException(status_code=500, detail="Erro interno ao processar o pedido.")
+        print("🔥 Erro no middleware de autenticação:")
+        traceback.print_exc()
+        raise e
 
 # Executa tarefas agendadas automaticamente
 @app.on_event("startup")

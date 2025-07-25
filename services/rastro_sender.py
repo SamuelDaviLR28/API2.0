@@ -5,9 +5,19 @@ from database import SessionLocal
 from models.rastro import Rastro
 
 def montar_payload(rastro: Rastro):
+    files = []
+    if rastro.file_url:
+        files.append({
+            "url": rastro.file_url,
+            "description": rastro.file_description,
+            "fileType": rastro.file_type
+        })
+
     return {
         "nfKey": rastro.nfkey,
         "CourierId": rastro.courier_id,
+        "orderId": None,  # se necessário
+        "trackingNumber": "",  # se necessário
         "events": [{
             "eventCode": rastro.event_code,
             "description": rastro.description,
@@ -22,13 +32,15 @@ def montar_payload(rastro: Rastro):
                 "lat": rastro.geo_lat,
                 "_long": rastro.geo_long
             },
-            "files": [ {
-                "url": rastro.file_url,
-                "description": rastro.file_description,
-                "fileType": rastro.file_type
-            }] if rastro.file_url else []
-        }]
+            "files": files  # sempre presente
+        }],
+        "additionalInfo": {
+            "additionalProp1": "",
+            "additionalProp2": "",
+            "additionalProp3": ""
+        }
     }
+
 
 def enviar_rastros_pendentes():
     db: Session = SessionLocal()

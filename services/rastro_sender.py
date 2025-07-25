@@ -22,7 +22,7 @@ def montar_payload(rastro: Rastro):
                 "lat": rastro.geo_lat,
                 "_long": rastro.geo_long
             },
-            "files": [{
+            "files": [ {
                 "url": rastro.file_url,
                 "description": rastro.file_description,
                 "fileType": rastro.file_type
@@ -38,16 +38,19 @@ def enviar_rastros_pendentes():
         print("ℹ Nenhum rastro pendente.")
         return
 
-    TBOX_TOKEN = os.getenv("TBOX_TOKEN")  # <- use o token correto do .env
-
     for rastro in rastros:
         try:
             payload = {"eventsData": [montar_payload(rastro)]}
+            
+            # ⚠️ Corrigido aqui: adicionar Bearer
             headers = {
-                "Authorization": f"Bearer {TBOX_TOKEN}",
+                "Authorization": f"Bearer {os.getenv('TOUTBOX_API_KEY')}",
                 "Content-Type": "application/json"
             }
+
+            # ⚠️ Corrigido: endpoint oficial da Toutbox
             url = "https://production.toutbox.com.br/api/v1/External/Tracking"
+
             response = requests.post(url, json=payload, headers=headers)
 
             if response.status_code in [200, 204]:
@@ -55,6 +58,7 @@ def enviar_rastros_pendentes():
                 print(f"✅ RASTRO enviado com sucesso: {rastro.nfkey}")
             else:
                 print(f"❌ Erro ao enviar RASTRO {rastro.nfkey}: {response.status_code} - {response.text}")
+            
             db.commit()
         except Exception as e:
             print(f"🔥 Erro ao processar RASTRO {rastro.nfkey}: {e}")

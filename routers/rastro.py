@@ -6,10 +6,9 @@ from models.rastro import Rastro
 import httpx
 import os
 import json
-
 from dotenv import load_dotenv
-load_dotenv()
 
+load_dotenv()
 router = APIRouter()
 
 # Dependência do banco de dados
@@ -26,34 +25,33 @@ async def enviar_rastro_toutbox(
     db: Session = Depends(get_db),
     x_api_key: Optional[str] = Header(None)
 ):
-    # Autenticação via API Key
+    # 🔒 Validação da API Key
     API_KEY = os.getenv("API_KEY")
     if API_KEY and x_api_key != API_KEY:
         raise HTTPException(status_code=403, detail="Chave de API inválida.")
 
-    # Validação do corpo JSON
+    # 📥 Validação do JSON
     try:
         payload = await request.json()
     except Exception:
         raise HTTPException(status_code=400, detail="JSON inválido.")
 
-    # Extração da nfKey
     try:
-        nfkey = payload["eventsData"][0]["nfKey"]
+        event = payload.get("eventsData", [{}])[0]
+        nfkey = event.get("nfKey")
+        if not nfkey:
+            raise HTTPException(status_code=400, detail="nfKey não encontrada no corpo.")
     except Exception:
-        raise HTTPException(status_code=400, detail="nfKey não encontrada no corpo.")
+        raise HTTPException(status_code=400, detail="Erro ao processar payload.")
 
-    # URL e Token da Toutbox
+    # 📡 Envio à Toutbox
     url = "https://production.toutbox.com.br/api/v1/External/Tracking"
-    TBOX_TOKEN = os.getenv("TBOX_TOKEN")  # deve estar no seu .env
-
-    # Headers com Authorization
+    TBOX_TOKEN = os.getenv("TBOX_TOKEN")
     headers = {
         "Authorization": f"Bearer {TBOX_TOKEN}",
         "Content-Type": "application/json"
     }
 
-    # Envio para a Toutbox
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(url, json=payload, headers=headers, timeout=10)
@@ -63,14 +61,28 @@ async def enviar_rastro_toutbox(
         status_envio = "erro"
         resposta = str(e)
 
-    # Registro no banco
+    # 💾 Salva no banco de dados
     rastro = Rastro(
-        nfkey=nfkey,
+        nfkey=event.get("nfKey"),
+        courier_id=event.get("CourierId") or None,
+        event_code=event.get("eventCode"),
+        description=event.get("description"),
+        date=event.get("date"),
+        address=event.get("address"),
+        number=event.get("number"),
+        city=event.get("city"),
+        state=event.get("state"),
+        receiver_document=event.get("receiverDocument"),
+        receiver=event.get("receiver"),
+        geo_lat=event.get("geo", {}).get("lat"),
+        geo_long=event.get("geo", {}).get("_long"),
+        file_url=(event.get("files") or [{}])[0].get("url"),
+        file_description=(event.get("files") or [{}])[0].get("description"),
+        file_type=(event.get("files") or [{}])[0].get("fileType"),
         status=status_envio,
         response=resposta,
         enviado=(status_envio == "sucesso"),
-        # payload é JSON na prática, então você precisa certificar que o campo no modelo está configurado para JSON (Text + cast no PostgreSQL ou JSON nativo)
-        payload=json.dumps(payload)  
+        payload=json.dumps(payload)
     )
     db.add(rastro)
     db.commit()

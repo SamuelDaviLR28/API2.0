@@ -29,10 +29,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Cabeçalho da API Key
-api_key_header = APIKeyHeader(name="x-api-key", auto_error=False)
-
-# Middleware de autenticação
+# Middleware de autenticação para rotas sensíveis
 @app.middleware("http")
 async def autenticar_api_key(request: Request, call_next):
     try:
@@ -59,7 +56,7 @@ async def autenticar_api_key(request: Request, call_next):
         traceback.print_exc()
         raise e
 
-# Executa tarefas agendadas automaticamente
+# Executa tarefas agendadas automaticamente no startup
 @app.on_event("startup")
 async def iniciar_agendador():
     print("🚀 Iniciando agendador de tarefas automáticas...")
@@ -70,8 +67,8 @@ async def iniciar_agendador():
 def raiz():
     return {"mensagem": "API no ar com autenticação por API Key nas rotas sensíveis."}
 
-# Registro das rotas
-app.include_router(dispatch.router)
-app.include_router(patch.router)
-app.include_router(rastro.router)
-app.include_router(cancelamento.router)
+# Registro das rotas com prefixos
+app.include_router(dispatch.router, prefix="/dispatch", tags=["dispatch"])
+app.include_router(patch.router, prefix="/patch", tags=["patch"])
+app.include_router(rastro.router, prefix="/rastro", tags=["rastro"])
+app.include_router(cancelamento.router, prefix="/cancelamento", tags=["cancelamento"])

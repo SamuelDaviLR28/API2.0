@@ -3,7 +3,7 @@ import os
 import asyncio
 from database import SessionLocal
 from models.historico_patch import HistoricoPatch
-from models.patch_update import PatchUpdate
+from models.patch import PatchUpdate
 
 async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list):
     url = f"https://production.toutbox.com.br/api/v1/External/Order?nfkey={nfkey}&courier_id={courier_id}"

@@ -4,39 +4,57 @@ from sqlalchemy.orm import Session
 from database import SessionLocal
 from models.patch import PatchUpdate
 
-def enviar_patches_pendentes():
+def enviar_rastros_pendentes():
     db: Session = SessionLocal()
-    patches = db.query(PatchUpdate).filter(PatchUpdate.status != "enviado").all()
+    rastros = db.query(Rastro).filter(Rastro.enviado == False).all()
 
-    if not patches:
-        print(" Nenhum patch pendente.")
+    if not rastros:
+        print("ℹ Nenhum rastro pendente.")
         return
 
-    for patch in patches:
+    for rastro in rastros:
+        # ✅ Verifica se o PATCH foi enviado com sucesso
+        patch_ok = (
+            db.query(PatchUpdate)
+            .filter(
+                PatchUpdate.nfkey == rastro.nfkey,
+                PatchUpdate.status == "enviado"
+            )
+            .first()
+        )
+        if not patch_ok:
+            print(f"⏸ Aguardando PATCH da nfkey {rastro.nfkey}. Rastro não será enviado ainda.")
+            continue
+
         try:
-            nfkey = patch.nfkey
-            url = f"http://production.toutbox.com.br/api/v1/external/api/v1/External/Order?nfkey={nfkey}&courier_id=84"
+            payload_dict = montar_payload(rastro)
+            payload = {"eventsData": [payload_dict]}
+
             headers = {
-                "Content-Type": "application/json-patch+json",
-                "Authorization": os.getenv("TOUTBOX_API_KEY")
+                "Authorization": f"Bearer {os.getenv('TOUTBOX_API_KEY')}",
+                "Content-Type": "application/json"
             }
 
-            response = requests.patch(url, json=patch.payload, headers=headers)
+            url = "https://production.toutbox.com.br/api/v1/External/Tracking"
+            response = requests.post(url, json=payload, headers=headers)
 
-            patch.response = response.text
+            rastro.payload = json.dumps(payload)
+            rastro.updated_at = datetime.utcnow()
+
             if response.status_code in [200, 204]:
-                patch.status = "enviado"
-                print(f" PATCH enviado com sucesso: {nfkey}")
+                rastro.enviado = True
+                rastro.status = "sucesso"
+                rastro.response = response.text
+                print(f"✅ RASTRO enviado com sucesso: {rastro.nfkey}")
             else:
-                patch.status = f"erro {response.status_code}"
-                print(f" Erro ao enviar PATCH {nfkey}: {response.status_code} - {response.text}")
+                rastro.status = "erro"
+                rastro.response = response.text
+                print(f"❌ Erro ao enviar RASTRO {rastro.nfkey}: {response.status_code} - {response.text}")
 
             db.commit()
 
         except Exception as e:
-            patch.status = 'erro'
-            patch.response = str(e)
-            db.commit()
-            print(f" Erro ao processar PATCH {nfkey}: {e}")
+            db.rollback()
+            print(f"🔥 Erro ao processar RASTRO {rastro.nfkey}: {e}")
 
     db.close()

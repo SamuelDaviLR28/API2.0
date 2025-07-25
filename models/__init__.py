@@ -1,4 +1,4 @@
-from .dispatch import Dispatch
+from .dispatch import DispatchRequest
 from .patch import PatchUpdate
 from .pedido import Pedido
 from .rastro import Evento

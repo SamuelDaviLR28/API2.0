@@ -3,17 +3,9 @@ import requests
 from sqlalchemy.orm import Session
 from database import SessionLocal
 from models.rastro import Rastro
+from datetime import datetime
 
 def montar_payload(rastro: Rastro):
-    # Verifica se tem arquivo para anexar
-    arquivos = []
-    if rastro.file_url:
-        arquivos.append({
-            "url": rastro.file_url,
-            "description": rastro.file_description or "",
-            "fileType": rastro.file_type or "image/jpg"
-        })
-
     evento = {
         "eventCode": rastro.event_code,
         "description": rastro.description,
@@ -22,24 +14,26 @@ def montar_payload(rastro: Rastro):
         "number": rastro.number,
         "city": rastro.city,
         "state": rastro.state,
-        "files": arquivos if arquivos else []
+        "receiverDocument": rastro.receiver_document,
+        "receiver": rastro.receiver,
+        "geo": {
+            "lat": rastro.geo_lat,
+            "_long": rastro.geo_long
+        },
+        "files": [{
+            "url": rastro.file_url,
+            "description": rastro.file_description,
+            "fileType": rastro.file_type
+        }] if rastro.file_url else []
     }
 
-    return {
+    payload = {
         "nfKey": rastro.nfkey,
         "CourierId": rastro.courier_id,
-        # ❌ Removido orderId porque está vindo como OV
-        # "orderId": None,  ← opcional
-        "trackingNumber": "",
-        "additionalInfo": {
-            "additionalProp1": "",
-            "additionalProp2": "",
-            "additionalProp3": ""
-        },
         "events": [evento]
     }
 
-
+    return payload
 
 def enviar_rastros_pendentes():
     db: Session = SessionLocal()
@@ -52,25 +46,35 @@ def enviar_rastros_pendentes():
     for rastro in rastros:
         try:
             payload = {"eventsData": [montar_payload(rastro)]}
-            
-            # ⚠️ Corrigido aqui: adicionar Bearer
+
+            # Armazenar o payload final em string para log
+            rastro.payload = str(payload)
+
             headers = {
                 "Authorization": f"Bearer {os.getenv('TOUTBOX_API_KEY')}",
                 "Content-Type": "application/json"
             }
 
-            # ⚠️ Corrigido: endpoint oficial da Toutbox
             url = "https://production.toutbox.com.br/api/v1/External/Tracking"
-
             response = requests.post(url, json=payload, headers=headers)
 
             if response.status_code in [200, 204]:
                 rastro.enviado = True
+                rastro.status = "enviado"
                 print(f"✅ RASTRO enviado com sucesso: {rastro.nfkey}")
             else:
+                rastro.status = "erro"
+                rastro.response = response.text
                 print(f"❌ Erro ao enviar RASTRO {rastro.nfkey}: {response.status_code} - {response.text}")
-            
+
+            rastro.updated_at = datetime.utcnow()
             db.commit()
+
         except Exception as e:
+            rastro.status = "erro"
+            rastro.response = str(e)
+            rastro.updated_at = datetime.utcnow()
             print(f"🔥 Erro ao processar RASTRO {rastro.nfkey}: {e}")
+            db.commit()
+
     db.close()

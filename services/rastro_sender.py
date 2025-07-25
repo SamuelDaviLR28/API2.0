@@ -8,7 +8,7 @@ from datetime import datetime
 
 
 def montar_payload(rastro: Rastro):
-    # Geo: enviar null se não houver coordenadas
+    # GEO
     geo = None
     if rastro.geo_lat is not None and rastro.geo_long is not None:
         geo = {
@@ -16,16 +16,16 @@ def montar_payload(rastro: Rastro):
             "long": rastro.geo_long
         }
 
-    # Files: enviar [] se não tiver URL
+    # FILES
     files = []
     if rastro.file_url:
-        files.append({
+        files = [{
             "url": rastro.file_url,
             "description": rastro.file_description or "",
             "fileType": rastro.file_type or ""
-        })
+        }]
 
-    # Validação de campos obrigatórios
+    # VALIDAÇÕES OBRIGATÓRIAS
     if not rastro.event_code:
         raise ValueError(f"RASTRO {rastro.nfkey} está com eventCode nulo. Corrija antes de enviar.")
     if not rastro.date:
@@ -34,30 +34,31 @@ def montar_payload(rastro: Rastro):
     event = {
         "eventCode": rastro.event_code,
         "description": rastro.description or "",
-        "date": rastro.date.isoformat(),  # Obrigatório no formato ISO
-        "address": rastro.address or "",
-        "number": rastro.number or "",
-        "city": rastro.city or "",
-        "state": rastro.state or "",
-        "receiverDocument": rastro.receiver_document or "",
-        "receiver": rastro.receiver or "",
+        "date": rastro.date.isoformat(),
+        "address": rastro.address,
+        "number": rastro.number,
+        "city": rastro.city,
+        "state": rastro.state,
+        "receiverDocument": rastro.receiver_document,
+        "receiver": rastro.receiver,
         "geo": geo,
-        "files": files
+        "files": files if files else []
     }
 
-    evento_dict = {
+    payload = {
         "nfKey": rastro.nfkey,
         "CourierId": rastro.courier_id,
-        "events": [event]
+        "events": [event],
+        "orderId": rastro.order_id,  # Pode ir como None
+        "additionalInfo": {
+            "additionalProp1": "",
+            "additionalProp2": "",
+            "additionalProp3": ""
+        },
+        "trackingNumber": ""
     }
 
-    # orderId é opcional — enviar apenas se existir
-    if rastro.order_id:
-        evento_dict["orderId"] = rastro.order_id
-    else:
-        evento_dict["orderId"] = None
-
-    return evento_dict
+    return payload
 
 
 def enviar_rastros_pendentes():
@@ -79,11 +80,10 @@ def enviar_rastros_pendentes():
             }
 
             url = "https://production.toutbox.com.br/api/v1/External/Tracking"
-
             response = requests.post(url, json=payload, headers=headers)
 
-            # Serializar corretamente como JSON
-            rastro.payload = json.dumps(payload)
+            # Armazenar o payload como string válida
+            rastro.payload = json.dumps(payload, ensure_ascii=False)
             rastro.updated_at = datetime.utcnow()
 
             if response.status_code in [200, 204]:
@@ -103,6 +103,6 @@ def enviar_rastros_pendentes():
             try:
                 print(f"🔥 Erro ao processar RASTRO {rastro.nfkey}: {e}")
             except:
-                print(f"🔥 Erro genérico ao processar rastro (provavelmente o objeto foi invalidado): {e}")
+                print(f"🔥 Erro genérico ao processar rastro (objeto inválido): {e}")
 
     db.close()

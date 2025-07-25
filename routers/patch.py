@@ -1,34 +1,33 @@
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Body
+from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
-from database import get_db
-from models.pedido import Pedido
-from services.sla_service import buscar_sla
-from services.patch_sender import montar_payload_patch_com_sla, enviar_patch_para_toutbox
-import os
+from database import SessionLocal
+from models.patch import PatchUpdate
 
 router = APIRouter()
 
-@router.patch("/patch")
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+@router.patch("/")
 async def enviar_patch(
-    nfkey: str,
-    courier_id: int = 84,
-    x_api_key: str = Header(...),
+    payload: List[Dict[str, Any]] = Body(...),
+    nfkey: str = "",
+    x_api_key: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
-    API_KEY = os.getenv("API_KEY")
-    if x_api_key != API_KEY:
-        raise HTTPException(status_code=403, detail="Chave de API inválida.")
+    # A autenticação já ocorre no middleware do main.py, mas pode repetir se quiser
+    if not nfkey:
+        raise HTTPException(status_code=400, detail="Parâmetro 'nfkey' é obrigatório.")
 
-    pedido = db.query(Pedido).filter(Pedido.nfkey == nfkey).first()
-    if not pedido:
-        raise HTTPException(status_code=404, detail="Pedido não encontrado")
+    # Exemplo simplificado: salvar patch no banco
+    novo_patch = PatchUpdate(nfkey=nfkey, payload=payload, status="pendente")
+    db.add(novo_patch)
+    db.commit()
+    db.refresh(novo_patch)
 
-    sla_prazo = buscar_sla(db, uf_origem=pedido.uf_origem, uf_destino=pedido.uf_destino, cidade_destino=pedido.cidade_destino)
-    if sla_prazo is None:
-        sla_prazo = 3  # padrão caso não encontrado
-
-    payload_patch = montar_payload_patch_com_sla(sla_prazo)
-
-    result = await enviar_patch_para_toutbox(nfkey, courier_id, payload_patch)
-
-    return result
+    return {"message": "Patch salvo e será enviado.", "id": novo_patch.id}

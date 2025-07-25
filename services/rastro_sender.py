@@ -1,4 +1,5 @@
 import os
+import json
 import requests
 from sqlalchemy.orm import Session
 from database import SessionLocal
@@ -6,15 +7,13 @@ from models.rastro import Rastro
 from datetime import datetime
 
 def montar_payload(rastro: Rastro):
-    # GEO – deve ser None se lat ou long estiverem ausentes
     geo = None
     if rastro.geo_lat is not None and rastro.geo_long is not None:
         geo = {
             "lat": rastro.geo_lat,
-            "long": rastro.geo_long  # ✅ Corrigido: "long", não "_long"
+            "long": rastro.geo_long
         }
 
-    # FILES – lista vazia se não tiver URL
     files = []
     if rastro.file_url:
         files = [{
@@ -23,18 +22,15 @@ def montar_payload(rastro: Rastro):
             "fileType": rastro.file_type or ""
         }]
 
-    # DATE – obrigatório
-    date = rastro.date.isoformat() if rastro.date else None
-
-    # eventCode – obrigatório
     if not rastro.event_code:
         raise ValueError(f"RASTRO {rastro.nfkey} está com eventCode nulo. Corrija antes de enviar.")
+    if not rastro.date:
+        raise ValueError(f"RASTRO {rastro.nfkey} está com data nula. Corrija antes de enviar.")
 
-    # EVENT
     event = {
         "eventCode": rastro.event_code,
         "description": rastro.description or "",
-        "date": date,
+        "date": rastro.date.isoformat(),
         "address": rastro.address,
         "number": rastro.number,
         "city": rastro.city,
@@ -73,7 +69,9 @@ def enviar_rastros_pendentes():
 
             response = requests.post(url, json=payload, headers=headers)
 
-            rastro.payload = str(payload).replace("'", '"')  # salva JSON como string válida
+            # ✅ SERIALIZAÇÃO CORRETA COM JSON VÁLIDO
+            rastro.payload = json.dumps(payload)
+            rastro.updated_at = datetime.utcnow()
 
             if response.status_code in [200, 204]:
                 rastro.enviado = True
@@ -85,11 +83,13 @@ def enviar_rastros_pendentes():
                 rastro.response = response.text
                 print(f"❌ Erro ao enviar RASTRO {rastro.nfkey}: {response.status_code} - {response.text}")
 
-            rastro.updated_at = datetime.utcnow()
             db.commit()
 
         except Exception as e:
-            print(f"🔥 Erro ao processar RASTRO {rastro.nfkey}: {e}")
             db.rollback()
+            try:
+                print(f"🔥 Erro ao processar RASTRO {rastro.nfkey}: {e}")
+            except:
+                print(f"🔥 Erro genérico ao processar rastro (provavelmente o objeto foi invalidado): {e}")
 
     db.close()

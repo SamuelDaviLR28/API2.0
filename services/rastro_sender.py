@@ -5,41 +5,40 @@ from database import SessionLocal
 from models.rastro import Rastro
 
 def montar_payload(rastro: Rastro):
-    files = []
+    # Verifica se tem arquivo para anexar
+    arquivos = []
     if rastro.file_url:
-        files.append({
+        arquivos.append({
             "url": rastro.file_url,
-            "description": rastro.file_description,
-            "fileType": rastro.file_type
+            "description": rastro.file_description or "",
+            "fileType": rastro.file_type or "image/jpg"
         })
+
+    evento = {
+        "eventCode": rastro.event_code,
+        "description": rastro.description,
+        "date": rastro.date.isoformat() if rastro.date else None,
+        "address": rastro.address,
+        "number": rastro.number,
+        "city": rastro.city,
+        "state": rastro.state,
+        "files": arquivos if arquivos else []
+    }
 
     return {
         "nfKey": rastro.nfkey,
         "CourierId": rastro.courier_id,
-        "orderId": None,  # se necessário
-        "trackingNumber": "",  # se necessário
-        "events": [{
-            "eventCode": rastro.event_code,
-            "description": rastro.description,
-            "date": rastro.date.isoformat() if rastro.date else None,
-            "address": rastro.address,
-            "number": rastro.number,
-            "city": rastro.city,
-            "state": rastro.state,
-            "receiverDocument": rastro.receiver_document,
-            "receiver": rastro.receiver,
-            "geo": {
-                "lat": rastro.geo_lat,
-                "_long": rastro.geo_long
-            },
-            "files": files  # sempre presente
-        }],
+        # ❌ Removido orderId porque está vindo como OV
+        # "orderId": None,  ← opcional
+        "trackingNumber": "",
         "additionalInfo": {
             "additionalProp1": "",
             "additionalProp2": "",
             "additionalProp3": ""
-        }
+        },
+        "events": [evento]
     }
+
 
 
 def enviar_rastros_pendentes():

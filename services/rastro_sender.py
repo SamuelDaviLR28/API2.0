@@ -6,7 +6,9 @@ from database import SessionLocal
 from models.rastro import Rastro
 from datetime import datetime
 
+
 def montar_payload(rastro: Rastro):
+    # Geo: enviar null se não houver coordenadas
     geo = None
     if rastro.geo_lat is not None and rastro.geo_long is not None:
         geo = {
@@ -14,14 +16,16 @@ def montar_payload(rastro: Rastro):
             "long": rastro.geo_long
         }
 
+    # Files: enviar [] se não tiver URL
     files = []
     if rastro.file_url:
-        files = [{
+        files.append({
             "url": rastro.file_url,
             "description": rastro.file_description or "",
             "fileType": rastro.file_type or ""
-        }]
+        })
 
+    # Validação de campos obrigatórios
     if not rastro.event_code:
         raise ValueError(f"RASTRO {rastro.nfkey} está com eventCode nulo. Corrija antes de enviar.")
     if not rastro.date:
@@ -30,22 +34,31 @@ def montar_payload(rastro: Rastro):
     event = {
         "eventCode": rastro.event_code,
         "description": rastro.description or "",
-        "date": rastro.date.isoformat(),
-        "address": rastro.address,
-        "number": rastro.number,
-        "city": rastro.city,
-        "state": rastro.state,
-        "receiverDocument": rastro.receiver_document,
-        "receiver": rastro.receiver,
+        "date": rastro.date.isoformat(),  # Obrigatório no formato ISO
+        "address": rastro.address or "",
+        "number": rastro.number or "",
+        "city": rastro.city or "",
+        "state": rastro.state or "",
+        "receiverDocument": rastro.receiver_document or "",
+        "receiver": rastro.receiver or "",
         "geo": geo,
         "files": files
     }
 
-    return {
+    evento_dict = {
         "nfKey": rastro.nfkey,
         "CourierId": rastro.courier_id,
         "events": [event]
     }
+
+    # orderId é opcional — enviar apenas se existir
+    if rastro.order_id:
+        evento_dict["orderId"] = rastro.order_id
+    else:
+        evento_dict["orderId"] = None
+
+    return evento_dict
+
 
 def enviar_rastros_pendentes():
     db: Session = SessionLocal()
@@ -69,7 +82,7 @@ def enviar_rastros_pendentes():
 
             response = requests.post(url, json=payload, headers=headers)
 
-            # ✅ SERIALIZAÇÃO CORRETA COM JSON VÁLIDO
+            # Serializar corretamente como JSON
             rastro.payload = json.dumps(payload)
             rastro.updated_at = datetime.utcnow()
 

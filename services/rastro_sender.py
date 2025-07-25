@@ -35,25 +35,27 @@ def enviar_rastros_pendentes():
     rastros = db.query(Rastro).filter(Rastro.enviado == False).all()
 
     if not rastros:
-        print(" Nenhum rastro pendente.")
+        print("ℹ Nenhum rastro pendente.")
         return
+
+    TBOX_TOKEN = os.getenv("TBOX_TOKEN")  # <- use o token correto do .env
 
     for rastro in rastros:
         try:
             payload = {"eventsData": [montar_payload(rastro)]}
             headers = {
-                "Authorization": os.getenv("TOUTBOX_API_KEY"),
+                "Authorization": f"Bearer {TBOX_TOKEN}",
                 "Content-Type": "application/json"
             }
-            url = "http://courier.toutbox.com.br/api/v1/Parcel/Event"
+            url = "https://production.toutbox.com.br/api/v1/External/Tracking"
             response = requests.post(url, json=payload, headers=headers)
 
             if response.status_code in [200, 204]:
                 rastro.enviado = True
-                print(f" RASTRO enviado com sucesso: {rastro.nfkey}")
+                print(f"✅ RASTRO enviado com sucesso: {rastro.nfkey}")
             else:
-                print(f" Erro ao enviar RASTRO {rastro.nfkey}: {response.status_code} - {response.text}")
+                print(f"❌ Erro ao enviar RASTRO {rastro.nfkey}: {response.status_code} - {response.text}")
             db.commit()
         except Exception as e:
-            print(f" Erro ao processar RASTRO {rastro.nfkey}: {e}")
+            print(f"🔥 Erro ao processar RASTRO {rastro.nfkey}: {e}")
     db.close()

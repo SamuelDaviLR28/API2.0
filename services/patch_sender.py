@@ -5,8 +5,8 @@ import json
 from database import SessionLocal
 from models.historico_patch import HistoricoPatch
 from models.patch import PatchUpdate
-from services.sla import buscar_sla
 from models.pedido import Pedido
+from services.sla import buscar_sla
 
 
 async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list):

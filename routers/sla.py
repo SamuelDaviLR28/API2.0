@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app.database import get_db
+from database import get_db
 from models.sla import SLA
 from schemas.sla import SLACreate, SLAResponse
 

@@ -1,12 +1,12 @@
-from sqlalchemy import Column, String, Text, DateTime, func
-from app.database import Base
+from sqlalchemy import Column, Integer, String, Text, DateTime, func
+from database import Base  # <- corrigido aqui
 
 class HistoricoRastro(Base):
     __tablename__ = "historico_rastro"
 
-    id = Column(String, primary_key=True, index=True)
-    nfkey = Column(String, index=True)
+    id = Column(Integer, primary_key=True, index=True)
+    nfkey = Column(String(60), nullable=False)
     payload = Column(Text)
-    status = Column(String)
+    status = Column(String(50))
     response = Column(Text)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())  # <- ESSA LINHA
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

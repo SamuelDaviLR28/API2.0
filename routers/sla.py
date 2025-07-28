@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models.sla import SLA
-from schemas.sla import SLACreate, SLAResponse
+
 
 router = APIRouter(prefix="/sla", tags=["SLA"])
 

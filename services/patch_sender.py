@@ -5,6 +5,8 @@ import json
 from database import SessionLocal
 from models.historico_patch import HistoricoPatch
 from models.patch import PatchUpdate
+from services.sla import buscar_sla
+from models.pedido import Pedido
 
 
 async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list):
@@ -55,22 +57,38 @@ def montar_payload_patch_com_sla(prazo_dias_uteis: int) -> list:
 
 
 async def enviar_patches_pendentes():
-    """Função síncrona para uso no agendador APScheduler"""
     db = SessionLocal()
     patches = db.query(PatchUpdate).filter(PatchUpdate.status.is_(None)).all()
-
     print(f"🕒 Enviando {len(patches)} patches pendentes...")
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
     for patch in patches:
+        pedido = db.query(Pedido).filter_by(nfkey=patch.nfkey).first()
+
+        if not pedido:
+            print(f"⚠️ Pedido não encontrado para nfkey {patch.nfkey}")
+            continue
+
+        sla_dias = buscar_sla(
+            db,
+            uf_origem=pedido.uf_remetente,
+            uf_destino=pedido.uf_destinatario
+        )
+
+        if sla_dias is None:
+            print(f"⚠️ SLA não encontrado para {pedido.uf_remetente} -> {pedido.uf_destinatario}")
+            continue
+
+        payload = montar_payload_patch_com_sla(sla_dias)
+
         try:
             loop.run_until_complete(
                 enviar_patch_para_toutbox(
                     nfkey=patch.nfkey,
                     courier_id=patch.courier_id,
-                    payload=patch.payload
+                    payload=payload
                 )
             )
             print(f"✅ PATCH enviado para nfkey {patch.nfkey}")

@@ -8,3 +8,4 @@ class SLA(Base):
     uf_destino = Column(String(2), nullable=False, index=True)
     cidade_destino = Column(String(100), nullable=True, index=True)
     prazo_dias_uteis = Column(Integer, nullable=False)
+    cidade_destino = Column(String, nullable=True)

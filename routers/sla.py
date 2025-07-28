@@ -6,7 +6,7 @@ from models.sla import SLA
 
 router = APIRouter(prefix="/sla", tags=["SLA"])
 
-@router.post("/", response_model=SLAResponse)
+@router.post("/")
 def criar_sla(sla: SLACreate, db: Session = Depends(get_db)):
     existe = db.query(SLA).filter_by(
         uf_origem=sla.uf_origem.upper(),

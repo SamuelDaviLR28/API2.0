@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.security.api_key import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from routers import sla
 import os
 import traceback
 
@@ -72,3 +73,4 @@ app.include_router(dispatch.router, prefix="/dispatch", tags=["dispatch"])
 app.include_router(patch.router, prefix="/patch", tags=["patch"])
 app.include_router(rastro.router, prefix="/rastro", tags=["rastro"])
 app.include_router(cancelamento.router, prefix="/cancelamento", tags=["cancelamento"])
+app.include_router(sla.router, prefix="/sla", tags=["SLA"])

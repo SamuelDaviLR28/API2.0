@@ -54,7 +54,7 @@ def montar_payload_patch_com_sla(prazo_dias_uteis: int) -> list:
     ]
 
 
-def enviar_patches_pendentes():
+async def enviar_patches_pendentes():
     """Função síncrona para uso no agendador APScheduler"""
     db = SessionLocal()
     patches = db.query(PatchUpdate).filter(PatchUpdate.status.is_(None)).all()

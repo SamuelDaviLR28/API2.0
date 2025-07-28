@@ -21,7 +21,7 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
     db = SessionLocal()
     historico = HistoricoRastro(
         nfkey=payload["nfKey"],
-        payload=json.dumps(payload),  # ✅ Corrigido aqui
+        payload=json.dumps(payload),
         status=status,
         response=response.text
     )
@@ -83,7 +83,7 @@ async def enviar_rastros_pendentes():
 
         evento.status = resultado["status"]
         evento.response = resultado["response"]
-        evento.payload = json.dumps(payload)  # ✅ Corrigido aqui também
+        evento.payload = json.dumps(payload)
         evento.enviado = resultado["status"] == "enviado"
 
     db.commit()

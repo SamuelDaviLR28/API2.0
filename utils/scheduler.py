@@ -4,7 +4,6 @@ from services.patch_sender import enviar_patches_pendentes
 from services.rastro_sender import enviar_rastros_pendentes
 from services.esl_dispatch_sender import enviar_dispatch_para_esl
 
-# Wrappers síncronos para as funções async
 def enviar_rastros_sync():
     asyncio.run(enviar_rastros_pendentes())
 

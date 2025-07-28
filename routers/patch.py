@@ -13,21 +13,20 @@ def get_db():
     finally:
         db.close()
 
-@router.patch("/")
-async def enviar_patch(
-    payload: List[Dict[str, Any]] = Body(...),
-    nfkey: str = "",
-    x_api_key: Optional[str] = Header(None),
+@router.post("/")
+async def registrar_patch(
+    nfkey: str,
+    courier_id: int,
     db: Session = Depends(get_db)
 ):
-    # A autenticação já ocorre no middleware do main.py, mas pode repetir se quiser
-    if not nfkey:
-        raise HTTPException(status_code=400, detail="Parâmetro 'nfkey' é obrigatório.")
-
-    # Exemplo simplificado: salvar patch no banco
-    novo_patch = PatchUpdate(nfkey=nfkey, payload=payload, status="pendente")
+    novo_patch = PatchUpdate(
+        nfkey=nfkey,
+        courier_id=courier_id,
+        status=None  # Aguardando envio
+    )
     db.add(novo_patch)
     db.commit()
     db.refresh(novo_patch)
 
-    return {"message": "Patch salvo e será enviado.", "id": novo_patch.id}
+    return {"message": "Patch registrado. Envio será feito automaticamente.", "id": novo_patch.id}
+

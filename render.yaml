@@ -11,6 +11,5 @@ services:
         sync: false
       - key: API_KEY
         sync: false
-        envVars:
-  - key: PYTHONPATH
-    value: "/app"
+      - key: PYTHONPATH
+        value: "/app"

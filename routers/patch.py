@@ -13,7 +13,7 @@ def get_db():
     finally:
         db.close()
 
-@router.post("/")
+@router.patch("/patch")
 async def registrar_patch(
     nfkey: str,
     courier_id: int,

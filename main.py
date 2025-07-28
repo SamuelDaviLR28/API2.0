@@ -11,7 +11,7 @@ load_dotenv()
 print("🔑 API_KEY carregada:", os.getenv("API_KEY"))  # Remover após testes
 
 # Importação das rotas
-from routers import dispatch, patch, rastro, cancelamento
+from routers import dispatch, patch, rastro, cancelamento,sla
 
 # Importa o agendador automático
 from utils.scheduler import start as start_scheduler

@@ -1,12 +1,12 @@
 from sqlalchemy.orm import Session
-from models import SLA
+from models.sla import SLA
 
 def buscar_sla(db: Session, uf_origem: str, uf_destino: str, cidade_destino: str | None = None) -> int | None:
     if cidade_destino:
         sla = db.query(SLA).filter(
             SLA.uf_origem == uf_origem.upper(),
             SLA.uf_destino == uf_destino.upper(),
-            SLA.cidade_destino.ilike(cidade_destino)
+            SLA.cidade_destino.ilike(cidade_destino.strip())
         ).first()
         if sla:
             return sla.prazo_dias_uteis
@@ -17,7 +17,4 @@ def buscar_sla(db: Session, uf_origem: str, uf_destino: str, cidade_destino: str
         SLA.cidade_destino.is_(None)
     ).first()
 
-    if sla:
-        return sla.prazo_dias_uteis
-
-    return None
+    return sla.prazo_dias_uteis if sla else None

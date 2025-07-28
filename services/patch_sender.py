@@ -1,9 +1,11 @@
 import httpx
 import os
 import asyncio
+import json
 from database import SessionLocal
 from models.historico_patch import HistoricoPatch
 from models.patch import PatchUpdate
+
 
 async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list):
     url = f"https://production.toutbox.com.br/api/v1/External/Order?nfkey={nfkey}&courier_id={courier_id}"
@@ -15,22 +17,23 @@ async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list):
     async with httpx.AsyncClient() as client:
         response = await client.patch(url, json=payload, headers=headers)
 
-    db = SessionLocal()
     status = "enviado" if response.status_code in [200, 204] else f"erro {response.status_code}"
 
+    db = SessionLocal()
     historico = HistoricoPatch(
         nfkey=nfkey,
-        payload=payload,
+        payload=json.dumps(payload),  # Salvar como string JSON
         status=status,
         response=response.text
     )
     db.add(historico)
 
-    # Atualiza status na tabela patch_updates
+    # Atualizar PATCH na tabela principal
     patch = db.query(PatchUpdate).filter_by(nfkey=nfkey, courier_id=courier_id).first()
     if patch:
         patch.status = response.status_code
         patch.response = response.text
+
     db.commit()
     db.close()
 
@@ -39,6 +42,7 @@ async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list):
         "status": status,
         "response": response.text
     }
+
 
 def montar_payload_patch_com_sla(prazo_dias_uteis: int) -> list:
     return [
@@ -49,12 +53,13 @@ def montar_payload_patch_com_sla(prazo_dias_uteis: int) -> list:
         }
     ]
 
+
 def enviar_patches_pendentes():
-    """Função síncrona para ser usada por agendador. Envia PATCHs pendentes."""
+    """Função síncrona para uso no agendador APScheduler"""
     db = SessionLocal()
     patches = db.query(PatchUpdate).filter(PatchUpdate.status.is_(None)).all()
 
-    print(f"🕒 Iniciando envio de {len(patches)} patches pendentes...")
+    print(f"🕒 Enviando {len(patches)} patches pendentes...")
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -71,4 +76,5 @@ def enviar_patches_pendentes():
             print(f"✅ PATCH enviado para nfkey {patch.nfkey}")
         except Exception as e:
             print(f"❌ Erro ao enviar PATCH para nfkey {patch.nfkey}: {e}")
+
     db.close()

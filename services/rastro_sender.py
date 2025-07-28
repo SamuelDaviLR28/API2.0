@@ -1,5 +1,6 @@
 import httpx
 import os
+import json
 from database import SessionLocal
 from models.rastro import Rastro
 from models.historico_rastro import HistoricoRastro
@@ -17,11 +18,10 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
 
     status = "enviado" if response.status_code in [200, 204] else f"erro {response.status_code}"
 
-    # Salvar no histórico
     db = SessionLocal()
     historico = HistoricoRastro(
         nfkey=payload["nfKey"],
-        payload=payload,
+        payload=json.dumps(payload),  # ✅ Corrigido aqui
         status=status,
         response=response.text
     )
@@ -83,7 +83,7 @@ async def enviar_rastros_pendentes():
 
         evento.status = resultado["status"]
         evento.response = resultado["response"]
-        evento.payload = str(payload)  # Se estiver usando TEXT no modelo
+        evento.payload = json.dumps(payload)  # ✅ Corrigido aqui também
         evento.enviado = resultado["status"] == "enviado"
 
     db.commit()

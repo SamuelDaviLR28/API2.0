@@ -1,7 +1,6 @@
 import httpx
 import os
 import json
-import asyncio
 from database import SessionLocal
 from models.historico_patch import HistoricoPatch
 from models.patch import PatchUpdate
@@ -15,27 +14,36 @@ async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list):
         "Authorization": f"Bearer {os.getenv('TOUTBOX_API_KEY')}"
     }
 
-    async with httpx.AsyncClient() as client:
-        response = await client.patch(url, json=payload, headers=headers)
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.patch(url, json=payload, headers=headers)
+    except Exception as e:
+        return {
+            "nfkey": nfkey,
+            "status": "erro - exceção na requisição",
+            "response": str(e)
+        }
 
     status = "enviado" if response.status_code in [200, 204] else f"erro {response.status_code}"
 
     db = SessionLocal()
-    historico = HistoricoPatch(
-        nfkey=nfkey,
-        payload=json.dumps(payload),
-        status=status,
-        response=response.text
-    )
-    db.add(historico)
+    try:
+        historico = HistoricoPatch(
+            nfkey=nfkey,
+            payload=json.dumps(payload),
+            status=status,
+            response=response.text
+        )
+        db.add(historico)
 
-    patch = db.query(PatchUpdate).filter_by(nfkey=nfkey, courier_id=courier_id).first()
-    if patch:
-        patch.status = response.status_code
-        patch.response = response.text
+        patch = db.query(PatchUpdate).filter_by(nfkey=nfkey, courier_id=courier_id).first()
+        if patch:
+            patch.status = response.status_code
+            patch.response = response.text
 
-    db.commit()
-    db.close()
+        db.commit()
+    finally:
+        db.close()
 
     return {
         "nfkey": nfkey,
@@ -73,12 +81,12 @@ async def enviar_patches_pendentes():
         payload = montar_payload_patch_com_sla(sla_dias)
 
         try:
-            await enviar_patch_para_toutbox(
+            resultado = await enviar_patch_para_toutbox(
                 nfkey=patch.nfkey,
                 courier_id=patch.courier_id,
                 payload=payload
             )
-            print(f"✅ PATCH enviado para nfkey {patch.nfkey}")
+            print(f"✅ PATCH enviado para nfkey {patch.nfkey}: {resultado['status']}")
         except Exception as e:
             print(f"❌ Erro ao enviar PATCH para nfkey {patch.nfkey}: {e}")
 

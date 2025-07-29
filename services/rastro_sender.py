@@ -17,7 +17,7 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
             response = await client.post(url, json=payload, headers=headers)
     except Exception as e:
         return {
-            "nfkey": payload.get("nfKey"),
+            "nfkey": payload.get("eventsData", [{}])[0].get("nfKey"),
             "status": "erro - exceção na requisição",
             "response": str(e)
         }
@@ -27,7 +27,7 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
     db = SessionLocal()
     try:
         historico = HistoricoRastro(
-            nfkey=payload.get("nfKey"),
+            nfkey=payload.get("eventsData", [{}])[0].get("nfKey"),
             payload=json.dumps(payload),
             status=status,
             response=response.text
@@ -38,7 +38,7 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
         db.close()
 
     return {
-        "nfkey": payload.get("nfKey"),
+        "nfkey": payload.get("eventsData", [{}])[0].get("nfKey"),
         "status": status,
         "response": response.text
     }
@@ -53,7 +53,7 @@ def montar_payload_rastro(evento) -> dict:
         files.append({
             "url": evento.file_url,
             "description": evento.file_description or "",
-            "type": evento.file_type or "OUTRO"
+            "fileType": evento.file_type or "OUTRO"
         })
 
     return {
@@ -71,7 +71,6 @@ def montar_payload_rastro(evento) -> dict:
             "receiver": evento.receiver,
             "geo": geo,
             "files": files  # sempre lista, vazia se sem arquivos
-            # orderId e trackingNumber removidos conforme solicitado
         }]
     }
 
@@ -80,7 +79,8 @@ async def enviar_rastros_pendentes():
     eventos = db.query(Rastro).filter(Rastro.enviado == False).all()
 
     for evento in eventos:
-        payload = montar_payload_rastro(evento)
+        item = montar_payload_rastro(evento)
+        payload = {"eventsData": [item]}  # Encapsulado conforme exigido
         resultado = await enviar_rastro_para_toutbox(payload, evento.courier_id)
 
         evento.status = resultado["status"]

@@ -25,46 +25,64 @@ async def enviar_rastro_toutbox(
     db: Session = Depends(get_db),
     x_api_key: Optional[str] = Header(None)
 ):
-    # 🔒 Validação da API Key
     API_KEY = os.getenv("API_KEY")
     if API_KEY and x_api_key != API_KEY:
         raise HTTPException(status_code=403, detail="Chave de API inválida.")
 
-    # 📥 Validação do JSON
     try:
         payload = await request.json()
     except Exception:
         raise HTTPException(status_code=400, detail="JSON inválido.")
 
-    try:
-        event = payload.get("eventsData", [{}])[0]
-        nfkey = event.get("nfKey")
-        if not nfkey:
-            raise HTTPException(status_code=400, detail="nfKey não encontrada no corpo.")
-    except Exception:
-        raise HTTPException(status_code=400, detail="Erro ao processar payload.")
+    event = payload.get("eventsData", [{}])[0]
+    nfkey = event.get("nfKey")
+    if not nfkey:
+        raise HTTPException(status_code=400, detail="nfKey não encontrada.")
 
-    # 📡 Envio à Toutbox
-    url = "http://courier.toutbox.com.br/api/v1/Parcel/Event"
-    TBOX_TOKEN = os.getenv("TBOX_TOKEN")
+    TOUTBOX_API_KEY = os.getenv("TOUTBOX_API_KEY")
+    if not TOUTBOX_API_KEY:
+        raise HTTPException(status_code=500, detail="Token Toutbox não configurado.")
+
+    toutbox_payload = {
+        "nfKey": event.get("nfKey"),
+        "CourierId": event.get("CourierId"),
+        "events": [{
+            "eventCode": event.get("eventCode"),
+            "description": event.get("description"),
+            "date": event.get("date"),
+            "address": event.get("address"),
+            "number": event.get("number"),
+            "city": event.get("city"),
+            "state": event.get("state"),
+            "receiverDocument": event.get("receiverDocument"),
+            "receiver": event.get("receiver"),
+            "geo": event.get("geo"),
+            "files": event.get("files")
+        }]
+    }
+
     headers = {
-        "Authorization": f"Bearer {TBOX_TOKEN}",
+        "Authorization": f"Bearer {TOUTBOX_API_KEY}",
         "Content-Type": "application/json"
     }
 
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=payload, headers=headers, timeout=10)
-        status_envio = "sucesso" if response.status_code < 300 else "erro"
+            response = await client.post(
+                "http://courier.toutbox.com.br/api/v1/Parcel/Event",
+                json=toutbox_payload,
+                headers=headers,
+                timeout=10
+            )
+        status_envio = "sucesso" if response.status_code < 300 else f"erro {response.status_code}"
         resposta = response.text
     except Exception as e:
         status_envio = "erro"
         resposta = str(e)
 
-    # 💾 Salva no banco de dados
     rastro = Rastro(
-        nfkey=event.get("nfKey"),
-        courier_id=event.get("CourierId") or None,
+        nfkey=nfkey,
+        courier_id=event.get("CourierId"),
         event_code=event.get("eventCode"),
         description=event.get("description"),
         date=event.get("date"),
@@ -75,7 +93,7 @@ async def enviar_rastro_toutbox(
         receiver_document=event.get("receiverDocument"),
         receiver=event.get("receiver"),
         geo_lat=event.get("geo", {}).get("lat"),
-        geo_long=event.get("geo", {}).get("_long"),
+        geo_long=event.get("geo", {}).get("long"),
         file_url=(event.get("files") or [{}])[0].get("url"),
         file_description=(event.get("files") or [{}])[0].get("description"),
         file_type=(event.get("files") or [{}])[0].get("fileType"),
@@ -92,6 +110,7 @@ async def enviar_rastro_toutbox(
         "status_envio": status_envio,
         "resposta_toutbox": resposta
     }
+
 
 # Alias para ESL
 @router.post("/docs/api/esl/eventos")

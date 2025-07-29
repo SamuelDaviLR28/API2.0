@@ -3,11 +3,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
 import traceback
-import asyncio
 
+# Carrega variáveis do .env
 load_dotenv()
+print("🔑 API_KEY carregada:", os.getenv("API_KEY"))  # Remover após testes
 
+# Importação das rotas
 from routers import dispatch, patch, rastro, cancelamento, sla
+
+# Importa o agendador automático (função síncrona)
 from utils.scheduler import start as start_scheduler
 
 app = FastAPI(
@@ -16,6 +20,7 @@ app = FastAPI(
     swagger_ui_parameters={"persistAuthorization": True}
 )
 
+# Libera todas as origens (CORS)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,10 +28,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Middleware de autenticação para rotas sensíveis
 @app.middleware("http")
 async def autenticar_api_key(request: Request, call_next):
     try:
         rotas_livres = ("/", "/docs", "/openapi.json", "/favicon.ico", "/redoc")
+
         if request.url.path in rotas_livres:
             return await call_next(request)
 
@@ -48,16 +55,18 @@ async def autenticar_api_key(request: Request, call_next):
         traceback.print_exc()
         raise e
 
+# ✅ Corrigido: função síncrona
 @app.on_event("startup")
 def iniciar_agendador():
     print("🚀 Iniciando agendador de tarefas automáticas...")
-    start_scheduler()  
+    start_scheduler()
 
-
+# Rota raiz
 @app.get("/")
 def raiz():
     return {"mensagem": "API no ar com autenticação por API Key nas rotas sensíveis."}
 
+# Registro das rotas com prefixos
 app.include_router(dispatch.router, prefix="/dispatch", tags=["dispatch"])
 app.include_router(patch.router, prefix="/patch", tags=["patch"])
 app.include_router(rastro.router, prefix="/rastro", tags=["rastro"])

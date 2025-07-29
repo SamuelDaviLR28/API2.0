@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, Header, HTTPException, Body
-from typing import List, Dict, Any, Optional
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from typing import Optional
 from database import SessionLocal
 from models.patch import PatchUpdate
+from services.patch_sender import enviar_patches_pendentes
 
 router = APIRouter()
 
@@ -19,14 +20,29 @@ async def registrar_patch(
     courier_id: int,
     db: Session = Depends(get_db)
 ):
+    # Verifica se já existe patch pendente igual para evitar duplicatas
+    existente = db.query(PatchUpdate).filter_by(nfkey=nfkey, courier_id=courier_id, status=None).first()
+    if existente:
+        return {"message": "Patch já registrado e pendente de envio.", "id": existente.id}
+
     novo_patch = PatchUpdate(
         nfkey=nfkey,
         courier_id=courier_id,
-        status=None  # Aguardando envio
+        status=None  # pendente
     )
     db.add(novo_patch)
     db.commit()
     db.refresh(novo_patch)
 
-    return {"message": "Patch registrado. Envio será feito automaticamente.", "id": novo_patch.id}
+    # Opcional: você pode disparar aqui o envio automático, mas ideal usar job/worker
+    # await enviar_patches_pendentes()
 
+    return {"message": "Patch registrado com sucesso. Envio será feito automaticamente.", "id": novo_patch.id}
+
+@router.post("/patch/enviar-pendentes")
+async def enviar_todos_patches_pendentes():
+    try:
+        await enviar_patches_pendentes()
+        return {"message": "Envio de patches pendentes finalizado."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro no envio de patches: {e}")

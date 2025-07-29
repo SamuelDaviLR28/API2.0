@@ -31,12 +31,17 @@ async def receber_evento_rastro(
         raise HTTPException(status_code=400, detail="Payload deve conter 'eventsData' como lista.")
 
     for event in events_data:
-        # Remove orderId e trackingNumber se existirem
-        event.pop("orderId", None)
-        event.pop("trackingNumber", None)
+        nfkey = event.get("nfKey")
+        if not nfkey:
+            continue
+
+        # Garante que "files" seja uma lista, mesmo que vazia
+        event_files = (event.get("events") or [{}])[0].get("files")
+        if event_files is None:
+            event_files = []
 
         rastro = Rastro(
-            nfkey=event.get("nfKey"),
+            nfkey=nfkey,
             courier_id=event.get("CourierId"),
             event_code=(event.get("events") or [{}])[0].get("eventCode"),
             description=(event.get("events") or [{}])[0].get("description"),
@@ -49,13 +54,13 @@ async def receber_evento_rastro(
             receiver=(event.get("events") or [{}])[0].get("receiver"),
             geo_lat=(event.get("events") or [{}])[0].get("geo", {}).get("lat"),
             geo_long=(event.get("events") or [{}])[0].get("geo", {}).get("long"),
-            file_url=((event.get("events") or [{}])[0].get("files") or [{}])[0].get("url"),
-            file_description=((event.get("events") or [{}])[0].get("files") or [{}])[0].get("description"),
-            file_type=((event.get("events") or [{}])[0].get("files") or [{}])[0].get("fileType"),
+            file_url=event_files[0].get("url") if event_files else None,
+            file_description=event_files[0].get("description") if event_files else None,
+            file_type=event_files[0].get("fileType") if event_files else None,
             status=None,
             response=None,
             enviado=False,
-            payload=json.dumps(event)  # grava sem orderId e trackingNumber
+            payload=json.dumps({"eventsData": [event]})  # Aqui o formato pedido
         )
         db.add(rastro)
 

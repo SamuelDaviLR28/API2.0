@@ -6,7 +6,7 @@ from models.rastro import Rastro
 from models.historico_rastro import HistoricoRastro
 
 async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
-    url = "http://courier.toutbox.com.br/api/v1/Parcel/Event"  # Atualizado
+    url = "http://courier.toutbox.com.br/api/v1/Parcel/Event"
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {os.getenv('TOUTBOX_API_KEY')}"
@@ -65,7 +65,6 @@ def montar_payload_rastro(evento) -> dict:
         }]
     }
 
-# ESTA É A FUNÇÃO QUE DEVE EXISTIR PARA EVITAR O ERRO
 async def enviar_rastros_pendentes():
     db = SessionLocal()
     eventos = db.query(Rastro).filter(Rastro.enviado == False).all()

@@ -49,10 +49,10 @@ async def autenticar_api_key(request: Request, call_next):
         raise e
 
 @app.on_event("startup")
-async def iniciar_agendador():
+def iniciar_agendador():
     print("🚀 Iniciando agendador de tarefas automáticas...")
-    # Ajuste aqui dependendo do start_scheduler ser async ou sync
-    asyncio.create_task(start_scheduler())
+    start_scheduler()  
+
 
 @app.get("/")
 def raiz():

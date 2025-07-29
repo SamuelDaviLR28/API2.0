@@ -45,7 +45,7 @@ async def enviar_rastro_toutbox(
         raise HTTPException(status_code=400, detail="Erro ao processar payload.")
 
     # 📡 Envio à Toutbox
-    url = "https://production.toutbox.com.br/api/v1/External/Tracking"
+    url = "http://courier.toutbox.com.br/api/v1/Parcel/Event"
     TBOX_TOKEN = os.getenv("TBOX_TOKEN")
     headers = {
         "Authorization": f"Bearer {TBOX_TOKEN}",

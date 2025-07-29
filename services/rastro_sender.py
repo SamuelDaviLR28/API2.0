@@ -59,7 +59,7 @@ def montar_payload_rastro(evento) -> dict:
     return {
         "nfKey": evento.nfkey,
         "CourierId": evento.courier_id,
-        "events": [ {
+        "events": [{
             "eventCode": evento.event_code,
             "description": evento.description or "",
             "date": evento.date.isoformat() if evento.date else None,
@@ -70,7 +70,8 @@ def montar_payload_rastro(evento) -> dict:
             "receiverDocument": evento.receiver_document,
             "receiver": evento.receiver,
             "geo": geo,
-            "files": files
+            "files": files  # sempre lista, vazia se sem arquivos
+            # orderId e trackingNumber removidos conforme solicitado
         }]
     }
 

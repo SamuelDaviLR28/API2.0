@@ -1,10 +1,10 @@
-# routers/rastro.py
-
 from fastapi import APIRouter, Request, Header, HTTPException, Depends
 from sqlalchemy.orm import Session
 from database import get_db
 from models.rastro import Rastro
 from datetime import datetime
+import os
+
 
 router = APIRouter(prefix="/api/esl", tags=["Rastro ESL"])
 

@@ -1,5 +1,3 @@
-# services/rastro_sender.py
-
 import httpx
 import os
 import json

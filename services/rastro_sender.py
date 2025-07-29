@@ -7,7 +7,7 @@ from models.historico_rastro import HistoricoRastro
 
 
 async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
-    url = "https://production.toutbox.com.br/api/v1/External/Tracking"
+    url = "http://courier.toutbox.com.br/api/v1/Parcel/Event"
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {os.getenv('TOUTBOX_API_KEY')}"

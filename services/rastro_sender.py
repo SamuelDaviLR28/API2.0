@@ -12,24 +12,33 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
         "Authorization": f"Bearer {os.getenv('TOUTBOX_API_KEY')}"
     }
 
-    async with httpx.AsyncClient() as client:
-        response = await client.post(url, json=payload, headers=headers)
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.post(url, json=payload, headers=headers)
+    except Exception as e:
+        return {
+            "nfkey": payload.get("nfKey"),
+            "status": "erro - exceção na requisição",
+            "response": str(e)
+        }
 
     status = "enviado" if response.status_code in [200, 204] else f"erro {response.status_code}"
 
     db = SessionLocal()
-    historico = HistoricoRastro(
-        nfkey=payload["nfKey"],
-        payload=json.dumps(payload),
-        status=status,
-        response=response.text
-    )
-    db.add(historico)
-    db.commit()
-    db.close()
+    try:
+        historico = HistoricoRastro(
+            nfkey=payload.get("nfKey"),
+            payload=json.dumps(payload),
+            status=status,
+            response=response.text
+        )
+        db.add(historico)
+        db.commit()
+    finally:
+        db.close()
 
     return {
-        "nfkey": payload["nfKey"],
+        "nfkey": payload.get("nfKey"),
         "status": status,
         "response": response.text
     }
@@ -50,7 +59,7 @@ def montar_payload_rastro(evento) -> dict:
     return {
         "nfKey": evento.nfkey,
         "CourierId": evento.courier_id,
-        "events": [{
+        "events": [ {
             "eventCode": evento.event_code,
             "description": evento.description or "",
             "date": evento.date.isoformat() if evento.date else None,

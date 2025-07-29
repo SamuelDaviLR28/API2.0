@@ -1,11 +1,6 @@
 from fastapi import APIRouter, Request, Header, HTTPException, Depends
 from sqlalchemy.orm import Session
 from typing import Optional
-import os
-import json
-from database import SessionLocal
-from models.rastro import Rastro
-from services.rastro_sender import enviar_rastro_para_toutbox, montar_payload_rastro, enviar_rastros_pendentes
 
 router = APIRouter()
 
@@ -22,7 +17,6 @@ async def receber_evento_rastro(
     db: Session = Depends(get_db),
     x_api_key: Optional[str] = Header(None)
 ):
-    # Validação da API Key enviada pela ESL
     API_KEY = os.getenv("API_KEY")
     if API_KEY and x_api_key != API_KEY:
         raise HTTPException(status_code=403, detail="Chave de API inválida.")
@@ -32,20 +26,17 @@ async def receber_evento_rastro(
     except Exception:
         raise HTTPException(status_code=400, detail="JSON inválido.")
 
-    # Espera o payload com "eventsData" que é lista
     events_data = payload.get("eventsData")
     if not events_data or not isinstance(events_data, list):
         raise HTTPException(status_code=400, detail="Payload deve conter 'eventsData' como lista.")
 
-    # Processa cada evento do eventsData e salva no banco
     for event in events_data:
-        nfkey = event.get("nfKey")
-        if not nfkey:
-            continue  # ou pode abortar com erro
+        # Remove orderId e trackingNumber se existirem
+        event.pop("orderId", None)
+        event.pop("trackingNumber", None)
 
-        # Salva no banco o evento (na tabela Rastro)
         rastro = Rastro(
-            nfkey=nfkey,
+            nfkey=event.get("nfKey"),
             courier_id=event.get("CourierId"),
             event_code=(event.get("events") or [{}])[0].get("eventCode"),
             description=(event.get("events") or [{}])[0].get("description"),
@@ -64,11 +55,11 @@ async def receber_evento_rastro(
             status=None,
             response=None,
             enviado=False,
-            payload=json.dumps(payload)
+            payload=json.dumps(event)  # grava sem orderId e trackingNumber
         )
         db.add(rastro)
-    db.commit()
 
+    db.commit()
     return {"message": "Eventos recebidos e salvos."}
 
 @router.post("/rastro/enviar-pendentes")

@@ -5,12 +5,15 @@ from database import SessionLocal
 from models.rastro import Rastro
 from models.historico_rastro import HistoricoRastro
 
+async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
+    url = "http://courier.toutbox.com.br/api/v1/Parcel/Event"
+    
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {os.getenv('TOUTBOX_API_KEY')}"
     }
 
-    print("🔍 Headers que serão enviados:", headers)  # <<< ADICIONE ISSO AQUI
+    print("🔍 Headers que serão enviados:", headers)  # <- agora está no local certo
 
     try:
         async with httpx.AsyncClient(timeout=10) as client:

@@ -14,10 +14,16 @@ async def importar_sla_csv(file: UploadFile = File(...)):
 
     content = await file.read()
     try:
-        # Corrigido para aceitar vírgula com possíveis espaços
         df = pd.read_csv(StringIO(content.decode("latin1")), sep=r'\s*,\s*', engine='python')
+        print("🔍 Colunas encontradas no CSV:", df.columns.tolist())
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Erro ao ler CSV: {e}")
+
+    # Validação para mostrar erro mais cedo
+    required_cols = ['uf_origem', 'uf_destino', 'cidade_destino', 'prazo']
+    for col in required_cols:
+        if col not in df.columns:
+            raise HTTPException(status_code=400, detail=f"Coluna obrigatória ausente: {col}")
 
     db: Session = SessionLocal()
     try:

@@ -12,8 +12,7 @@ async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list):
 
     headers = {
         "Content-Type": "application/json-patch+json",
-        # REMOVE o "Bearer " aqui, só a chave
-        "Authorization": os.getenv("TOUTBOX_API_KEY")
+        "x-api-key": os.getenv("TOUTBOX_API_KEY"),
     }
 
     try:

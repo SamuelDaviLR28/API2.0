@@ -14,7 +14,8 @@ async def importar_sla_csv(file: UploadFile = File(...)):
 
     content = await file.read()
     try:
-        df = pd.read_csv(StringIO(content.decode()))
+        # Corrigido para aceitar vírgula com possíveis espaços
+        df = pd.read_csv(StringIO(content.decode("latin1")), sep=r'\s*,\s*', engine='python')
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Erro ao ler CSV: {e}")
 

@@ -15,7 +15,6 @@ from models.historico_rastro import HistoricoRastro
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.post(url, json=payload, headers=headers)
-
     except Exception as e:
         return {
             "nfkey": payload.get("eventsData", [{}])[0].get("nfKey"),

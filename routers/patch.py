@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import Optional
 from database import SessionLocal
 from models.patch import PatchUpdate
 from services.patch_sender import enviar_patches_pendentes
@@ -20,7 +19,6 @@ async def registrar_patch(
     courier_id: int,
     db: Session = Depends(get_db)
 ):
-    # Verifica se já existe patch pendente igual para evitar duplicatas
     existente = db.query(PatchUpdate).filter_by(nfkey=nfkey, courier_id=courier_id, status=None).first()
     if existente:
         return {"message": "Patch já registrado e pendente de envio.", "id": existente.id}
@@ -28,14 +26,11 @@ async def registrar_patch(
     novo_patch = PatchUpdate(
         nfkey=nfkey,
         courier_id=courier_id,
-        status=None  # pendente
+        status=None
     )
     db.add(novo_patch)
     db.commit()
     db.refresh(novo_patch)
-
-    # Opcional: você pode disparar aqui o envio automático, mas ideal usar job/worker
-    # await enviar_patches_pendentes()
 
     return {"message": "Patch registrado com sucesso. Envio será feito automaticamente.", "id": novo_patch.id}
 

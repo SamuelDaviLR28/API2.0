@@ -15,8 +15,7 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
     
     headers = {
         "Content-Type": "application/json",
-        # Chave pura no header, sem Bearer
-        "Authorization": TOUTBOX_API_KEY
+        "x-api-key": TOUTBOX_API_KEY  # chave no header correto
     }
     print("🔍 Headers que serão enviados:", headers)
 
@@ -42,7 +41,6 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
         )
         db.add(historico)
 
-        # Atualiza registro do rastro para enviado se sucesso
         if status == "enviado":
             rastro = db.query(Rastro).filter(Rastro.nfkey == payload.get("eventsData", [{}])[0].get("nfKey")).first()
             if rastro:
@@ -58,6 +56,8 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
         "nfkey": payload.get("eventsData", [{}])[0].get("nfKey"),
         "status": status,
         "response": response.text
+    }
+
     }
 
 def montar_payload_rastro(evento) -> dict:

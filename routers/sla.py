@@ -1,24 +1,48 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, UploadFile, File, HTTPException
 from sqlalchemy.orm import Session
-from database import get_db
+import pandas as pd
+from database import SessionLocal
 from models.sla import SLA
-from pydantic import BaseModel
 
 router = APIRouter()
 
-class SLACreate(BaseModel):
-    uf_origem: str
-    uf_destino: str
-    prazo_dias_uteis: int
+@router.post("/sla/importar-csv")
+async def importar_sla_csv(file: UploadFile = File(...)):
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="Arquivo deve ser CSV")
 
-@router.post("/")
-def criar_sla(sla: SLACreate, db: Session = Depends(get_db)):
-    novo_sla = SLA(
-        uf_origem=sla.uf_origem,
-        uf_destino=sla.uf_destino,
-        prazo_dias_uteis=sla.prazo_dias_uteis
-    )
-    db.add(novo_sla)
-    db.commit()
-    db.refresh(novo_sla)
-    return {"message": "SLA cadastrado com sucesso", "id": novo_sla.id}
+    content = await file.read()
+    try:
+        df = pd.read_csv(pd.compat.StringIO(content.decode()))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Erro ao ler CSV: {e}")
+
+    db: Session = SessionLocal()
+    try:
+        for _, row in df.iterrows():
+            uf_origem = row['uf_origem']
+            uf_destino = row['uf_destino']
+            cidade_destino = row.get('cidade_destino', None)
+            prazo = int(row['prazo'])
+
+            sla_existente = db.query(SLA).filter_by(
+                uf_origem=uf_origem,
+                uf_destino=uf_destino,
+                cidade_destino=cidade_destino
+            ).first()
+
+            if sla_existente:
+                sla_existente.prazo = prazo
+            else:
+                sla = SLA(
+                    uf_origem=uf_origem,
+                    uf_destino=uf_destino,
+                    cidade_destino=cidade_destino,
+                    prazo=prazo
+                )
+                db.add(sla)
+        db.commit()
+    finally:
+        db.close()
+
+    return {"message": "Importação concluída com sucesso"}

@@ -15,11 +15,9 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
     
     headers = {
         "Content-Type": "application/json",
-        "Authorization": TOUTBOX_API_KEY  # chave pura, sem "Bearer"
+        "Authorization": TOUTBOX_API_KEY 
     }
-
-    print("🔍 Headers que serão enviados:", headers)
-
+    
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.post(url, json=payload, headers=headers)

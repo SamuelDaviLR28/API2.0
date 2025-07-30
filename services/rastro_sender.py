@@ -5,22 +5,22 @@ from database import SessionLocal
 from models.rastro import Rastro
 from models.historico_rastro import HistoricoRastro
 
-
+# Carrega a chave da Toutbox uma única vez
 TOUTBOX_API_KEY = os.getenv("TOUTBOX_API_KEY")
 
 if not TOUTBOX_API_KEY:
     raise Exception("Variável de ambiente TOUTBOX_API_KEY não definida!")
 
-
 async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
-    url = "http://courier.toutbox.com.br/api/v1/Parcel/Event"
-    
+    url = "https://courier.toutbox.com.br/api/v1/Parcel/Event"  # HTTPS obrigatório
+
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {os.getenv('TOUTBOX_API_KEY')}"
+        "Authorization": f"Bearer {TOUTBOX_API_KEY}"
     }
 
-    print("🔍 Headers que serão enviados:", headers)  # <- agora está no local certo
+    print("🔍 Headers que serão enviados:", headers)
+    print(f"🔑 TOUTBOX_API_KEY: '{TOUTBOX_API_KEY}'")
 
     try:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -53,6 +53,7 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
         "response": response.text
     }
 
+
 def montar_payload_rastro(evento) -> dict:
     geo = None
     if evento.geo_lat and evento.geo_long:
@@ -84,13 +85,14 @@ def montar_payload_rastro(evento) -> dict:
         }]
     }
 
+
 async def enviar_rastros_pendentes():
     db = SessionLocal()
     eventos = db.query(Rastro).filter(Rastro.enviado == False).all()
 
     for evento in eventos:
         item = montar_payload_rastro(evento)
-        payload = {"eventsData": [item]}  # Encapsulado conforme exigido
+        payload = {"eventsData": [item]}  # Encapsulado conforme exigido pela Toutbox
         resultado = await enviar_rastro_para_toutbox(payload, evento.courier_id)
 
         evento.status = resultado["status"]

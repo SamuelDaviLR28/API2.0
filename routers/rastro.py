@@ -76,13 +76,16 @@ async def receber_evento_rastro(
 
 
 @router.post("/rastro/enviar-pendentes")
-async def enviar_todos_rastros_pendentes():
+async def enviar_todos_rastros_pendentes(x_api_key: str = Header(...)):
+    API_KEY = os.getenv("API_KEY")
+    if x_api_key != API_KEY:
+        raise HTTPException(status_code=403, detail="Chave de API inválida.")
+
     db = SessionLocal()
     rastros = db.query(Rastro).filter(Rastro.enviado == False).all()
 
     resultados = []
     for rastro in rastros:
-        # Usa o payload salvo, que já está no formato correto
         payload = json.loads(rastro.payload)
         resultado = await enviar_rastro_para_toutbox(payload, rastro.courier_id)
 

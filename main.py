@@ -4,15 +4,12 @@ from dotenv import load_dotenv
 import os
 import traceback
 
-# Carrega variáveis do .env e do ambiente
+# Carrega variáveis do .env e ambiente
 load_dotenv()
 print("🔐 TOUTBOX_API_KEY carregada:", os.getenv("TOUTBOX_API_KEY"))
 print("🔐 API_KEY carregada:", os.getenv("API_KEY"))
 
-# Importação das rotas (exemplo, ajuste conforme seu projeto)
 from routers import dispatch, patch, rastro, cancelamento, sla
-
-# Importa o agendador automático (função síncrona)
 from utils.scheduler import start as start_scheduler
 
 app = FastAPI(
@@ -21,7 +18,6 @@ app = FastAPI(
     swagger_ui_parameters={"persistAuthorization": True}
 )
 
-# Libera todas as origens (CORS)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -29,7 +25,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Middleware de autenticação para rotas sensíveis
 @app.middleware("http")
 async def autenticar_api_key(request: Request, call_next):
     try:
@@ -49,7 +44,8 @@ async def autenticar_api_key(request: Request, call_next):
             if not chave_configurada:
                 raise HTTPException(status_code=500, detail="API_KEY não configurada no ambiente.")
 
-            if chave_enviada != chave_configurada:
+            # Usa strip() para evitar erros por espaços extras
+            if (chave_enviada or "").strip() != chave_configurada.strip():
                 raise HTTPException(status_code=403, detail="API Key inválida.")
 
         return await call_next(request)
@@ -59,20 +55,18 @@ async def autenticar_api_key(request: Request, call_next):
         traceback.print_exc()
         raise e
 
-# Evento de startup para iniciar o agendador
 @app.on_event("startup")
 def iniciar_agendador():
     print("🚀 Iniciando agendador de tarefas automáticas...")
     start_scheduler()
 
-# Rota raiz para teste
 @app.get("/")
 def raiz():
     return {"mensagem": "API no ar com autenticação por API Key nas rotas sensíveis."}
 
-# Registro das rotas
 app.include_router(dispatch.router, prefix="/dispatch", tags=["dispatch"])
 app.include_router(patch.router, prefix="/patch", tags=["patch"])
 app.include_router(rastro.router, prefix="/rastro", tags=["rastro"])
 app.include_router(cancelamento.router, prefix="/cancelamento", tags=["cancelamento"])
 app.include_router(sla.router, prefix="/sla", tags=["SLA"])
+

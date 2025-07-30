@@ -1,6 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from sqlalchemy.orm import Session
 import pandas as pd
+from io import StringIO
 from database import SessionLocal
 from models.sla import SLA
 
@@ -13,7 +14,7 @@ async def importar_sla_csv(file: UploadFile = File(...)):
 
     content = await file.read()
     try:
-        df = pd.read_csv(pd.compat.StringIO(content.decode()))
+        df = pd.read_csv(StringIO(content.decode()))
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Erro ao ler CSV: {e}")
 

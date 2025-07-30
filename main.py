@@ -4,12 +4,12 @@ from dotenv import load_dotenv
 import os
 import traceback
 
-# Carrega variáveis do .env
+# Carrega variáveis do .env e do ambiente
 load_dotenv()
 print("🔐 TOUTBOX_API_KEY carregada:", os.getenv("TOUTBOX_API_KEY"))
+print("🔐 API_KEY carregada:", os.getenv("API_KEY"))
 
-
-# Importação das rotas
+# Importação das rotas (exemplo, ajuste conforme seu projeto)
 from routers import dispatch, patch, rastro, cancelamento, sla
 
 # Importa o agendador automático (função síncrona)
@@ -43,6 +43,9 @@ async def autenticar_api_key(request: Request, call_next):
             chave_enviada = request.headers.get("x-api-key")
             chave_configurada = os.getenv("API_KEY")
 
+            print(f"🔑 Chave enviada no header x-api-key: {chave_enviada}")
+            print(f"🔐 Chave configurada no ambiente API_KEY: {chave_configurada}")
+
             if not chave_configurada:
                 raise HTTPException(status_code=500, detail="API_KEY não configurada no ambiente.")
 
@@ -56,18 +59,18 @@ async def autenticar_api_key(request: Request, call_next):
         traceback.print_exc()
         raise e
 
-# ✅ Corrigido: função síncrona
+# Evento de startup para iniciar o agendador
 @app.on_event("startup")
 def iniciar_agendador():
     print("🚀 Iniciando agendador de tarefas automáticas...")
     start_scheduler()
 
-# Rota raiz
+# Rota raiz para teste
 @app.get("/")
 def raiz():
     return {"mensagem": "API no ar com autenticação por API Key nas rotas sensíveis."}
 
-# Registro das rotas com prefixos
+# Registro das rotas
 app.include_router(dispatch.router, prefix="/dispatch", tags=["dispatch"])
 app.include_router(patch.router, prefix="/patch", tags=["patch"])
 app.include_router(rastro.router, prefix="/rastro", tags=["rastro"])

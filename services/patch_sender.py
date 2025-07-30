@@ -9,9 +9,11 @@ from services.sla_service import buscar_sla
 
 async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list):
     url = f"https://production.toutbox.com.br/api/v1/External/Order?nfkey={nfkey}&courier_id={courier_id}"
+
     headers = {
         "Content-Type": "application/json-patch+json",
-        "Authorization": f"Bearer {os.getenv('TOUTBOX_API_KEY')}"
+        # REMOVE o "Bearer " aqui, só a chave
+        "Authorization": os.getenv("TOUTBOX_API_KEY")
     }
 
     try:

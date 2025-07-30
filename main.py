@@ -6,7 +6,8 @@ import traceback
 
 # Carrega variáveis do .env
 load_dotenv()
-print("🔑 API_KEY carregada:", os.getenv("API_KEY"))  # Remover após testes
+print("🔐 TOUTBOX_API_KEY carregada:", os.getenv("TOUTBOX_API_KEY"))
+
 
 # Importação das rotas
 from routers import dispatch, patch, rastro, cancelamento, sla

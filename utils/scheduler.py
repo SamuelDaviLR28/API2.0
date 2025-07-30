@@ -4,6 +4,9 @@ from apscheduler.executors.pool import ThreadPoolExecutor
 from services.patch_sender import enviar_patches_pendentes
 from services.rastro_sender import enviar_rastros_pendentes
 from services.esl_dispatch_sender import enviar_dispatch_para_esl
+from dotenv import load_dotenv
+load_dotenv()
+
 
 # Wrappers protegidos por try/except
 def enviar_dispatch_sync():

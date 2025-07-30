@@ -13,24 +13,20 @@ async def importar_sla_csv(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Arquivo deve ser CSV")
 
     content = await file.read()
+
     try:
-        df = pd.read_csv(StringIO(content.decode("latin1")), sep=r'\s*,\s*', engine='python')
-        print("🔍 Colunas encontradas no CSV:", df.columns.tolist())
+        # 🔧 CSV separado por ponto e vírgula
+        df = pd.read_csv(StringIO(content.decode('utf-8')), sep=';')
+        df.columns = [col.strip().lower().replace(" ", "_") for col in df.columns]  # normaliza colunas
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Erro ao ler CSV: {e}")
-
-    # Validação para mostrar erro mais cedo
-    required_cols = ['uf_origem', 'uf_destino', 'cidade_destino', 'prazo']
-    for col in required_cols:
-        if col not in df.columns:
-            raise HTTPException(status_code=400, detail=f"Coluna obrigatória ausente: {col}")
 
     db: Session = SessionLocal()
     try:
         for _, row in df.iterrows():
             uf_origem = row['uf_origem']
             uf_destino = row['uf_destino']
-            cidade_destino = row.get('cidade_destino', None)
+            cidade_destino = row.get('cidade_destino')
             prazo = int(row['prazo'])
 
             sla_existente = db.query(SLA).filter_by(

@@ -5,6 +5,13 @@ from database import SessionLocal
 from models.rastro import Rastro
 from models.historico_rastro import HistoricoRastro
 
+
+TOUTBOX_API_KEY = os.getenv("TOUTBOX_API_KEY")
+
+if not TOUTBOX_API_KEY:
+    raise Exception("Variável de ambiente TOUTBOX_API_KEY não definida!")
+
+
 async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
     url = "http://courier.toutbox.com.br/api/v1/Parcel/Event"
     

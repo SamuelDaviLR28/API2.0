@@ -1,9 +1,12 @@
 import httpx
 import os
 import json
+from dotenv import load_dotenv
 from database import SessionLocal
 from models.rastro import Rastro
 from models.historico_rastro import HistoricoRastro
+
+load_dotenv()
 
 TOUTBOX_API_KEY = os.getenv("TOUTBOX_API_KEY")
 
@@ -15,7 +18,7 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
     
     headers = {
         "Content-Type": "application/json",
-        "x-api-key": TOUTBOX_API_KEY  # chave no header correto
+        "x-api-key": TOUTBOX_API_KEY
     }
     print("🔍 Headers que serão enviados:", headers)
 
@@ -58,8 +61,6 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
         "response": response.text
     }
 
-    }
-
 def montar_payload_rastro(evento) -> dict:
     geo = None
     if evento.geo_lat and evento.geo_long:
@@ -76,7 +77,7 @@ def montar_payload_rastro(evento) -> dict:
     return {
         "nfKey": evento.nfkey,
         "CourierId": evento.courier_id,
-        "events": [ {
+        "events": [{
             "eventCode": evento.event_code,
             "description": evento.description or "",
             "date": evento.date.isoformat() if evento.date else None,
@@ -88,7 +89,7 @@ def montar_payload_rastro(evento) -> dict:
             "receiver": evento.receiver,
             "geo": geo,
             "files": files
-        } ]
+        }]
     }
 
 async def enviar_rastros_pendentes():

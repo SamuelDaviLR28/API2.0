@@ -15,11 +15,12 @@ if not TOUTBOX_API_KEY:
 
 async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
     url = "http://courier.toutbox.com.br/api/v1/Parcel/Event"
-    
+
     headers = {
         "Content-Type": "application/json",
-        "Authorization": TOUTBOX_API_KEY  # chave simples, sem Bearer
+        "Authorization": TOUTBOX_API_KEY  # ← CORRETO AGORA
     }
+
     print("🔍 Headers que serão enviados:", headers)
 
     try:

@@ -6,13 +6,11 @@ from database import SessionLocal
 from models.rastro import Rastro
 from models.historico_rastro import HistoricoRastro
 
-# Carrega variáveis do .env
 load_dotenv()
 
 TOUTBOX_API_KEY = os.getenv("TOUTBOX_API_KEY")
 if not TOUTBOX_API_KEY:
     raise Exception("Variável de ambiente TOUTBOX_API_KEY não definida!")
-
 TOUTBOX_API_KEY = TOUTBOX_API_KEY.strip()
 
 
@@ -43,10 +41,10 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {TOUTBOX_API_KEY}"
+        "Authentication": TOUTBOX_API_KEY  # Header ajustado conforme solicitado
     }
 
-    nfkey = payload.get("eventsData", [{}])[0].get("nfKey") or payload.get("eventsData", [{}])[0].get("orderId")
+    nfkey = payload.get("eventsData", [{}])[0].get("nfKey")
 
     valido, msg_validacao = validar_payload(payload)
     if not valido:
@@ -56,14 +54,14 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
                 nfkey=nfkey,
                 payload=json.dumps(payload),
                 status="erro - payload inválido",
-                response=msg_validacao
+                response=msg_validacao[:255]
             )
             db.add(historico)
 
             rastro = db.query(Rastro).filter(Rastro.nfkey == nfkey).first()
             if rastro:
                 rastro.status = "erro - payload inválido"
-                rastro.response = msg_validacao
+                rastro.response = msg_validacao[:255]
                 rastro.enviado = False
 
             db.commit()
@@ -76,7 +74,7 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
             "response": msg_validacao
         }
 
-    print("🔍 Headers que serão enviados:", headers)
+    print("🔍 Enviando com headers:", headers)
 
     try:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -85,7 +83,7 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
         return {
             "nfkey": nfkey,
             "status": "erro - exceção na requisição",
-            "response": str(e)
+            "response": str(e)[:255]
         }
 
     status = "enviado" if response.status_code in [200, 204] else f"erro {response.status_code}"
@@ -96,7 +94,7 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
             nfkey=nfkey,
             payload=json.dumps(payload),
             status=status,
-            response=response.text
+            response=response.text[:255]
         )
         db.add(historico)
 
@@ -104,7 +102,7 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
         if rastro:
             rastro.enviado = status == "enviado"
             rastro.status = status
-            rastro.response = response.text
+            rastro.response = response.text[:255]
 
         db.commit()
     finally:
@@ -134,27 +132,24 @@ def montar_payload_rastro(evento) -> dict:
         "eventCode": evento.event_code,
         "description": evento.description or "",
         "date": evento.date.isoformat() if evento.date else None,
-        "address": evento.address,
-        "number": evento.number,
-        "city": evento.city,
-        "state": evento.state,
+        "address": evento.address or "",
+        "number": evento.number or "",
+        "city": evento.city or "",
+        "state": evento.state or "",
         "receiverDocument": evento.receiver_document,
         "receiver": evento.receiver,
         "geo": geo,
         "files": files
     }
 
-    # Monta o item principal do payload
     item = {
         "CourierId": evento.courier_id,
         "events": [evento_dict]
     }
 
-    # Enviar orderId somente se for válido (não começa com "OV")
-    if not str(evento.nfkey).lower().startswith("ov"):
-        item["orderId"] = evento.nfkey
+    # Não enviar orderId (ou enviar como None) para evitar erro com a chave no orderId
+    item["orderId"] = None
 
-    # Também incluir nfKey para rastreabilidade
     item["nfKey"] = evento.nfkey
 
     return item
@@ -162,17 +157,19 @@ def montar_payload_rastro(evento) -> dict:
 
 async def enviar_rastros_pendentes():
     db = SessionLocal()
-    eventos = db.query(Rastro).filter(Rastro.enviado == False).all()
+    try:
+        eventos = db.query(Rastro).filter(Rastro.enviado.is_(False)).all()
 
-    for evento in eventos:
-        item = montar_payload_rastro(evento)
-        payload = {"eventsData": [item]}
-        resultado = await enviar_rastro_para_toutbox(payload, evento.courier_id)
+        for evento in eventos:
+            item = montar_payload_rastro(evento)
+            payload = {"eventsData": [item]}
+            resultado = await enviar_rastro_para_toutbox(payload, evento.courier_id)
 
-        evento.status = resultado["status"]
-        evento.response = resultado["response"]
-        evento.payload = json.dumps(payload)
-        evento.enviado = resultado["status"] == "enviado"
+            evento.status = resultado["status"]
+            evento.response = resultado["response"][:255]
+            evento.payload = json.dumps(payload)
+            evento.enviado = resultado["status"] == "enviado"
 
-    db.commit()
-    db.close()
+        db.commit()
+    finally:
+        db.close()

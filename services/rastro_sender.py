@@ -6,19 +6,22 @@ from database import SessionLocal
 from models.rastro import Rastro
 from models.historico_rastro import HistoricoRastro
 
+# Carrega variáveis do .env
 load_dotenv()
 
-TOUTBOX_API_KEY = os.getenv("TOUTBOX_API_KEY").strip()
-
+TOUTBOX_API_KEY = os.getenv("TOUTBOX_API_KEY")
 if not TOUTBOX_API_KEY:
     raise Exception("Variável de ambiente TOUTBOX_API_KEY não definida!")
+
+# Remove espaços em branco, caso existam
+TOUTBOX_API_KEY = TOUTBOX_API_KEY.strip()
 
 async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
     url = "http://courier.toutbox.com.br/api/v1/Parcel/Event"
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": TOUTBOX_API_KEY  # ← CORRETO AGORA
+        "Authorization": TOUTBOX_API_KEY  # chave sem "Bearer"
     }
 
     print("🔍 Headers que serão enviados:", headers)

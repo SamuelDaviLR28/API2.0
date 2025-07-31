@@ -13,17 +13,16 @@ TOUTBOX_API_KEY = os.getenv("TOUTBOX_API_KEY")
 if not TOUTBOX_API_KEY:
     raise Exception("Variável de ambiente TOUTBOX_API_KEY não definida!")
 
-# Remove espaços em branco, caso existam
 TOUTBOX_API_KEY = TOUTBOX_API_KEY.strip()
+
 
 def validar_payload(payload: dict) -> tuple[bool, str]:
     try:
         evento_data = payload.get("eventsData", [{}])[0]
 
-        if not evento_data.get("orderId"):
-            return False, "Campo 'orderId' ausente."
         if not evento_data.get("CourierId"):
             return False, "Campo 'CourierId' ausente."
+
         eventos = evento_data.get("events", [])
         if not eventos:
             return False, "Lista 'events' vazia."
@@ -38,6 +37,7 @@ def validar_payload(payload: dict) -> tuple[bool, str]:
     except Exception as e:
         return False, f"Erro ao validar payload: {str(e)}"
 
+
 async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
     url = "http://courier.toutbox.com.br/api/v1/Parcel/Event"
 
@@ -46,9 +46,9 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
         "Authorization": f"Bearer {TOUTBOX_API_KEY}"
     }
 
-    valido, msg_validacao = validar_payload(payload)
-    nfkey = payload.get("eventsData", [{}])[0].get("orderId")
+    nfkey = payload.get("eventsData", [{}])[0].get("nfKey") or payload.get("eventsData", [{}])[0].get("orderId")
 
+    valido, msg_validacao = validar_payload(payload)
     if not valido:
         db = SessionLocal()
         try:
@@ -116,36 +116,49 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
         "response": response.text
     }
 
+
 def montar_payload_rastro(evento) -> dict:
     geo = None
     if evento.geo_lat and evento.geo_long:
         geo = {"lat": evento.geo_lat, "long": evento.geo_long}
 
     files = []
-    if evento.file_url:
+    if evento.file_url and evento.file_url.strip():
         files.append({
-            "url": evento.file_url,
+            "url": evento.file_url.strip(),
             "description": evento.file_description or "",
-            "fileType": evento.file_type or "OUTRO"
+            "fileType": (evento.file_type or "OUTRO").upper()
         })
 
-    return {
-        "orderId": evento.nfkey,           # Corrigido para orderId, conforme payload correto
-        "CourierId": evento.courier_id,
-        "events": [{
-            "eventCode": evento.event_code,
-            "description": evento.description or "",
-            "date": evento.date.isoformat() if evento.date else None,
-            "address": evento.address,
-            "number": evento.number,
-            "city": evento.city,
-            "state": evento.state,
-            "receiverDocument": evento.receiver_document,
-            "receiver": evento.receiver,
-            "geo": geo,
-            "files": files
-        }]
+    evento_dict = {
+        "eventCode": evento.event_code,
+        "description": evento.description or "",
+        "date": evento.date.isoformat() if evento.date else None,
+        "address": evento.address,
+        "number": evento.number,
+        "city": evento.city,
+        "state": evento.state,
+        "receiverDocument": evento.receiver_document,
+        "receiver": evento.receiver,
+        "geo": geo,
+        "files": files
     }
+
+    # Monta o item principal do payload
+    item = {
+        "CourierId": evento.courier_id,
+        "events": [evento_dict]
+    }
+
+    # Enviar orderId somente se for válido (não começa com "OV")
+    if not str(evento.nfkey).lower().startswith("ov"):
+        item["orderId"] = evento.nfkey
+
+    # Também incluir nfKey para rastreabilidade
+    item["nfKey"] = evento.nfkey
+
+    return item
+
 
 async def enviar_rastros_pendentes():
     db = SessionLocal()

@@ -21,7 +21,7 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": TOUTBOX_API_KEY.strip()
+        "Authorization": f"Bearer {TOUTBOX_API_KEY}"  # ← USANDO BEARER
     }
 
     print("🔍 Headers que serão enviados:", headers)
@@ -82,6 +82,7 @@ def montar_payload_rastro(evento) -> dict:
         "nfKey": evento.nfkey,
         "CourierId": evento.courier_id,
         "events": [{
+
             "eventCode": evento.event_code,
             "description": evento.description or "",
             "date": evento.date.isoformat() if evento.date else None,

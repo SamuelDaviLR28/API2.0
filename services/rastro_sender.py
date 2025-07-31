@@ -16,13 +16,65 @@ if not TOUTBOX_API_KEY:
 # Remove espaços em branco, caso existam
 TOUTBOX_API_KEY = TOUTBOX_API_KEY.strip()
 
+def validar_payload(payload: dict) -> tuple[bool, str]:
+    try:
+        evento_data = payload.get("eventsData", [{}])[0]
+
+        if not evento_data.get("orderId"):
+            return False, "Campo 'orderId' ausente."
+        if not evento_data.get("CourierId"):
+            return False, "Campo 'CourierId' ausente."
+        eventos = evento_data.get("events", [])
+        if not eventos:
+            return False, "Lista 'events' vazia."
+
+        evento = eventos[0]
+        campos_obrigatorios = ["eventCode", "date", "city", "state", "address", "number"]
+        for campo in campos_obrigatorios:
+            if not evento.get(campo):
+                return False, f"Campo obrigatório '{campo}' ausente no evento."
+
+        return True, "válido"
+    except Exception as e:
+        return False, f"Erro ao validar payload: {str(e)}"
+
 async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
     url = "http://courier.toutbox.com.br/api/v1/Parcel/Event"
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {TOUTBOX_API_KEY}"  # ← USANDO BEARER
+        "Authorization": f"Bearer {TOUTBOX_API_KEY}"
     }
+
+    valido, msg_validacao = validar_payload(payload)
+    nfkey = payload.get("eventsData", [{}])[0].get("orderId")
+
+    if not valido:
+        db = SessionLocal()
+        try:
+            historico = HistoricoRastro(
+                nfkey=nfkey,
+                payload=json.dumps(payload),
+                status="erro - payload inválido",
+                response=msg_validacao
+            )
+            db.add(historico)
+
+            rastro = db.query(Rastro).filter(Rastro.nfkey == nfkey).first()
+            if rastro:
+                rastro.status = "erro - payload inválido"
+                rastro.response = msg_validacao
+                rastro.enviado = False
+
+            db.commit()
+        finally:
+            db.close()
+
+        return {
+            "nfkey": nfkey,
+            "status": "erro - payload inválido",
+            "response": msg_validacao
+        }
 
     print("🔍 Headers que serão enviados:", headers)
 
@@ -31,7 +83,7 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
             response = await client.post(url, json=payload, headers=headers)
     except Exception as e:
         return {
-            "nfkey": payload.get("eventsData", [{}])[0].get("nfKey"),
+            "nfkey": nfkey,
             "status": "erro - exceção na requisição",
             "response": str(e)
         }
@@ -41,26 +93,25 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
     db = SessionLocal()
     try:
         historico = HistoricoRastro(
-            nfkey=payload.get("eventsData", [{}])[0].get("nfKey"),
+            nfkey=nfkey,
             payload=json.dumps(payload),
             status=status,
             response=response.text
         )
         db.add(historico)
 
-        if status == "enviado":
-            rastro = db.query(Rastro).filter(Rastro.nfkey == payload.get("eventsData", [{}])[0].get("nfKey")).first()
-            if rastro:
-                rastro.enviado = True
-                rastro.status = status
-                rastro.response = response.text
+        rastro = db.query(Rastro).filter(Rastro.nfkey == nfkey).first()
+        if rastro:
+            rastro.enviado = status == "enviado"
+            rastro.status = status
+            rastro.response = response.text
 
         db.commit()
     finally:
         db.close()
 
     return {
-        "nfkey": payload.get("eventsData", [{}])[0].get("nfKey"),
+        "nfkey": nfkey,
         "status": status,
         "response": response.text
     }
@@ -79,10 +130,9 @@ def montar_payload_rastro(evento) -> dict:
         })
 
     return {
-        "nfKey": evento.nfkey,
+        "orderId": evento.nfkey,           # Corrigido para orderId, conforme payload correto
         "CourierId": evento.courier_id,
         "events": [{
-
             "eventCode": evento.event_code,
             "description": evento.description or "",
             "date": evento.date.isoformat() if evento.date else None,

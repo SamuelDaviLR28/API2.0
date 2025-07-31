@@ -21,7 +21,7 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": TOUTBOX_API_KEY  # chave sem "Bearer"
+        "Authorization": TOUTBOX_API_KEY.strip()
     }
 
     print("🔍 Headers que serão enviados:", headers)

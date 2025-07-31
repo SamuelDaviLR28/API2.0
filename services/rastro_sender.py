@@ -8,7 +8,7 @@ from models.historico_rastro import HistoricoRastro
 
 load_dotenv()
 
-TOUTBOX_API_KEY = os.getenv("TOUTBOX_API_KEY")
+TOUTBOX_API_KEY = os.getenv("TOUTBOX_API_KEY").strip()
 
 if not TOUTBOX_API_KEY:
     raise Exception("Variável de ambiente TOUTBOX_API_KEY não definida!")

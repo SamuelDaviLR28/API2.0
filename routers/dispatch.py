@@ -28,9 +28,13 @@ async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db
         print("✅ Pedido recebido:")
         print(json_serializado)
 
+        # ✅ Monta e salva o pedido no banco com os campos necessários
         pedido_salvo = Pedido(
+            nfkey=pedido.NFeChave,
             numero_pedido=pedido.NumeroPedido,
             data_criacao=pedido.CriacaoPedido,
+            uf_remetente=pedido.Remetente.UF if pedido.Remetente else None,
+            uf_destinatario=pedido.Destinatario.UF if pedido.Destinatario else None,
             json_completo=json_serializado
         )
 

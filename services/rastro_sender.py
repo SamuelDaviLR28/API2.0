@@ -41,7 +41,7 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
 
     headers = {
         "Content-Type": "application/json",
-        "Authentication": TOUTBOX_API_KEY  # Usando Authentication sem Bearer
+        "Authorization": TOUTBOX_API_KEY  # ✅ Header correto
     }
 
     nfkey = payload.get("eventsData", [{}])[0].get("nfKey")
@@ -147,9 +147,9 @@ def montar_payload_rastro(evento) -> dict:
         "CourierId": evento.courier_id,
         "events": [evento_dict],
         "nfKey": evento.nfkey
+        # ❌ Não enviar "orderId"
     }
 
-    # ❌ Não incluir orderId — solicitado para não enviar
     return item
 
 

@@ -8,7 +8,7 @@ from models.pedido import Pedido
 from services.sla_service import buscar_sla
 from dotenv import load_dotenv
 
-# Certifique-se de carregar as variáveis do .env
+# Carrega variáveis do .env
 load_dotenv()
 
 async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list):
@@ -31,12 +31,14 @@ async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list):
 
     status = "enviado" if response.status_code in [200, 204] else f"erro {response.status_code}"
 
-    return {
-        "nfkey": nfkey,
-        "status": status,
-        "response": response.text
-    }
-
+    db = SessionLocal()
+    try:
+        historico = HistoricoPatch(
+            nfkey=nfkey,
+            payload=json.dumps(payload),
+            status=status,
+            response=response.text[:255]
+        )
         db.add(historico)
 
         patch = db.query(PatchUpdate).filter_by(nfkey=nfkey, courier_id=courier_id).first()

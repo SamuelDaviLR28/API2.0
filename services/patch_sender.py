@@ -1,6 +1,7 @@
 import httpx
 import os
 import json
+import traceback
 from database import SessionLocal
 from models.historico_patch import HistoricoPatch
 from models.patch import PatchUpdate
@@ -10,12 +11,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+TOUTBOX_API_KEY = os.getenv("TOUTBOX_API_KEY", "").strip()
+
 async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list):
     url = f"https://production.toutbox.com.br/api/v1/External/Order?nfkey={nfkey}&courier_id={courier_id}"
 
     headers = {
         "Content-Type": "application/json-patch+json",
-        "Authorization": os.getenv("TOUTBOX_API_KEY")
+        "Authorization": TOUTBOX_API_KEY
     }
 
     print(f"📦 PATCH → nfkey: {nfkey}, courier_id: {courier_id}")
@@ -25,6 +28,8 @@ async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list):
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.patch(url, json=payload, headers=headers)
     except Exception as e:
+        print(f"❌ Exceção na requisição PATCH: {e}")
+        traceback.print_exc()
         return {
             "nfkey": nfkey,
             "status": "erro - exceção na requisição",
@@ -75,32 +80,11 @@ async def enviar_patches_pendentes():
     print(f"🕒 Enviando {len(patches)} patches pendentes...")
 
     for patch in patches:
-        pedido = db.query(Pedido).filter_by(nfkey=patch.nfkey).first()
-
-        if not pedido:
-            print(f"⚠️ Pedido não encontrado para nfkey {patch.nfkey}")
-            continue
-
-        sla_dias = buscar_sla(db, uf_origem=pedido.uf_remetente, uf_destino=pedido.uf_destinatario)
-
-        if sla_dias is None:
-            print(f"⚠️ SLA não encontrado para {pedido.uf_remetente} -> {pedido.uf_destinatario}")
-            continue
-
-        payload = montar_payload_patch_com_sla(sla_dias)
-
-        # 🔄 Salva o payload no banco antes de enviar
-        patch.payload = json.dumps(payload)
-        db.commit()
-
         try:
-            resultado = await enviar_patch_para_toutbox(
-                nfkey=patch.nfkey,
-                courier_id=patch.courier_id,
-                payload=payload
-            )
-            print(f"✅ PATCH enviado para nfkey {patch.nfkey}: {resultado['status']}")
-        except Exception as e:
-            print(f"❌ Erro ao enviar PATCH para nfkey {patch.nfkey}: {e}")
+            pedido = db.query(Pedido).filter_by(nfkey=patch.nfkey).first()
+            if not pedido:
+                print(f"⚠️ Pedido não encontrado para nfkey {patch.nfkey}")
+                continue
 
-    db.close()
+            sla_dias = buscar_sla(db, uf_origem=pedido.uf_remetente, uf_destino=pedido.uf_destinatario)
+            if sla_dias is Non_

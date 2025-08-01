@@ -14,3 +14,4 @@ class Pedido(Base):
     status = Column(String(20), default="pendente")
     response = Column(Text, nullable=True)
     json_completo = Column(JSON, nullable=True)
+    numero_pedido = Column(String, nullable=True)

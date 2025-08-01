@@ -10,7 +10,7 @@ import traceback
 
 router = APIRouter()
 
-@router.post("/dispatch", dependencies=[Depends(verificar_api_key)])
+@router.post("/", dependencies=[Depends(verificar_api_key)])  # Corrigido aqui
 async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db)):
     try:
         if not pedido.Itens:
@@ -23,7 +23,7 @@ async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db
 
         json_serializado = json.dumps(pedido.model_dump(), indent=2, ensure_ascii=False, default=converter)
 
-        # Tenta pegar a chave NF-e de forma segura
+        # Pega a chave da NFe com segurança
         chave_nfe = None
         if hasattr(pedido, "NFeChave") and pedido.NFeChave:
             chave_nfe = pedido.NFeChave

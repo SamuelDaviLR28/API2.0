@@ -1,7 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from services.integracao import processar_nfkey
-from database import SessionLocal
-from models.patch import PatchUpdate
+from services.integracao import processar_nfkey, processar_todos_patches_e_rastros
 
 router = APIRouter()
 
@@ -15,11 +13,8 @@ async def processar_nfkey_route(nfkey: str):
 
 @router.post("/integracao/processar-todos")
 async def processar_todos_patches():
-    db = SessionLocal()
     try:
-        patches = db.query(PatchUpdate).filter(PatchUpdate.status.is_(None)).all()
-        for patch in patches:
-            await processar_nfkey(patch.nfkey)
-        return {"message": f"Processamento iniciado para {len(patches)} patches pendentes."}
-    finally:
-        db.close()
+        await processar_todos_patches_e_rastros()
+        return {"message": "Processamento de todos os patches pendentes finalizado."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro no processamento em massa: {str(e)}")

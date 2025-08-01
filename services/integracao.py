@@ -1,11 +1,12 @@
 from database import SessionLocal
-from models.patch import PatchUpdate
-from models.pedido import Pedido
-from models.rastro import Rastro
 from services.patch_sender import enviar_patch_para_toutbox, montar_payload_patch_com_sla
 from services.rastro_sender import enviar_rastro_para_toutbox, montar_payload_rastro
 from services.sla_service import buscar_sla
+from models.patch import PatchUpdate
+from models.pedido import Pedido
+from models.rastro import Rastro
 import json
+import asyncio
 
 async def processar_nfkey(nfkey: str):
     db = SessionLocal()
@@ -55,5 +56,16 @@ async def processar_nfkey(nfkey: str):
 
         print(f"Processamento finalizado para nfkey {nfkey}")
 
+    finally:
+        db.close()
+
+async def processar_todos_patches_e_rastros():
+    db = SessionLocal()
+    try:
+        patches_pendentes = db.query(PatchUpdate).filter(PatchUpdate.status.is_(None)).all()
+        print(f"Encontrados {len(patches_pendentes)} patches pendentes")
+
+        for patch in patches_pendentes:
+            await processar_nfkey(patch.nfkey)
     finally:
         db.close()

@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from database import SessionLocal
 from models.rastro import Rastro
 from models.historico_rastro import HistoricoRastro
+from models.patch import PatchUpdate
 
 load_dotenv()
 
@@ -41,7 +42,7 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": TOUTBOX_API_KEY  # ✅ Header correto
+        "Authorization": TOUTBOX_API_KEY
     }
 
     nfkey = payload.get("eventsData", [{}])[0].get("nfKey")
@@ -73,9 +74,6 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
             "status": "erro - payload inválido",
             "response": msg_validacao
         }
-
-    print("🔐 Headers:", headers)
-    print("📦 Payload:", json.dumps(payload, indent=2))
 
     try:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -147,7 +145,6 @@ def montar_payload_rastro(evento) -> dict:
         "CourierId": evento.courier_id,
         "events": [evento_dict],
         "nfKey": evento.nfkey
-        # ❌ Não enviar "orderId"
     }
 
     return item
@@ -159,6 +156,12 @@ async def enviar_rastros_pendentes():
         eventos = db.query(Rastro).filter(Rastro.enviado.is_(False)).all()
 
         for evento in eventos:
+            # Verifica se o patch foi enviado com sucesso antes de enviar rastro
+            patch = db.query(PatchUpdate).filter_by(nfkey=evento.nfkey, status=200).first()
+            if not patch:
+                print(f"Patch não enviado ou com erro para nfkey {evento.nfkey}. Ignorando envio do rastro.")
+                continue
+
             item = montar_payload_rastro(evento)
             payload = {"eventsData": [item]}
             resultado = await enviar_rastro_para_toutbox(payload, evento.courier_id)

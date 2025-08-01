@@ -42,11 +42,12 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": TOUTBOX_API_KEY  # Aqui o header correto!
+        "Authorization": TOUTBOX_API_KEY  # Header correto!
     }
 
     nfkey = payload.get("eventsData", [{}])[0].get("nfKey")
 
+    # Validação
     valido, msg_validacao = validar_payload(payload)
     if not valido:
         db = SessionLocal()
@@ -75,6 +76,7 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
             "response": msg_validacao
         }
 
+    # Envio
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.post(url, json=payload, headers=headers)
@@ -87,6 +89,7 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
 
     status = "enviado" if response.status_code in [200, 204] else f"erro {response.status_code}"
 
+    # Persistência
     db = SessionLocal()
     try:
         historico = HistoricoRastro(
@@ -138,17 +141,14 @@ def montar_payload_rastro(evento) -> dict:
         "receiverDocument": evento.receiver_document,
         "receiver": evento.receiver,
         "geo": geo,
-        "files": files if files else []  # enviar lista vazia se não tiver arquivos
+        "files": files
     }
 
-    # Retirar "driver" e "orderId" conforme especificação (não enviar se vazio ou errado)
-    item = {
+    return {
         "CourierId": evento.courier_id,
         "events": [evento_dict],
         "nfKey": evento.nfkey
     }
-
-    return item
 
 
 async def enviar_rastros_pendentes():
@@ -157,16 +157,17 @@ async def enviar_rastros_pendentes():
         eventos = db.query(Rastro).filter(Rastro.enviado.is_(False)).all()
 
         for evento in eventos:
-            # Só envia se patch do mesmo nfkey com status 200 existir
-            patch = db.query(PatchUpdate).filter_by(nfkey=evento.nfkey, status=200).first()
+            # Somente envia se houver PATCH com status "200"
+            patch = db.query(PatchUpdate).filter_by(nfkey=evento.nfkey, status="200").first()
             if not patch:
-                print(f"Patch não enviado ou com erro para nfkey {evento.nfkey}. Ignorando envio do rastro.")
+                print(f"⚠️ Patch não enviado ou com erro para nfkey {evento.nfkey}. Ignorando envio do rastro.")
                 continue
 
             item = montar_payload_rastro(evento)
             payload = {"eventsData": [item]}
             resultado = await enviar_rastro_para_toutbox(payload, evento.courier_id)
 
+            # Atualizar evento com resultado
             evento.status = resultado["status"]
             evento.response = resultado["response"][:255]
             evento.payload = json.dumps(payload)

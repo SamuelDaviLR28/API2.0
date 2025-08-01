@@ -41,32 +41,35 @@ async def verificar_e_ajustar_patches(db: Session = Depends(get_db)):
 
         payload = montar_payload_patch_com_sla(sla_prazo)
         patch.payload = json.dumps(payload)
-        db.add(patch)
-        ajustados.append(patch.nfkey)
+        ajustados.append(patch)
 
-    db.commit()
+    # Commit das alterações de payload de uma vez
+    if ajustados:
+        db.add_all(ajustados)
+        db.commit()
 
     resultados_envio = []
-    for nfkey in ajustados:
-        patch = db.query(PatchUpdate).filter_by(nfkey=nfkey).first()
-        if patch:
-            try:
-                resultado = await enviar_patch_para_toutbox(
-                    nfkey=patch.nfkey,
-                    courier_id=patch.courier_id,
-                    payload=json.loads(patch.payload)
-                )
-                patch.status = 200 if resultado['status'] == 'enviado' else None
-                patch.response = resultado['response'][:255]
-                db.add(patch)
-                db.commit()
-                resultados_envio.append({"nfkey": nfkey, "status": resultado['status']})
-            except Exception as e:
-                resultados_envio.append({"nfkey": nfkey, "erro": str(e)})
+    for patch in ajustados:
+        try:
+            resultado = await enviar_patch_para_toutbox(
+                nfkey=patch.nfkey,
+                courier_id=patch.courier_id,
+                payload=json.loads(patch.payload)
+            )
+            patch.status = 200 if resultado['status'] == 'enviado' else None
+            patch.response = resultado['response'][:255]
+            resultados_envio.append({"nfkey": patch.nfkey, "status": resultado['status']})
+        except Exception as e:
+            resultados_envio.append({"nfkey": patch.nfkey, "erro": str(e)})
+
+    # Commit atualizações de status/resposta
+    if ajustados:
+        db.add_all(ajustados)
+        db.commit()
 
     return {
         "patches_sem_pedido": sem_pedido,
         "patches_sem_sla": sem_sla,
-        "patches_ajustados": ajustados,
+        "patches_ajustados": [p.nfkey for p in ajustados],
         "resultados_envio": resultados_envio
     }

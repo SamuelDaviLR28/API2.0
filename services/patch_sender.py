@@ -8,7 +8,6 @@ from models.pedido import Pedido
 from services.sla_service import buscar_sla
 from dotenv import load_dotenv
 
-# Carrega variáveis do .env
 load_dotenv()
 
 async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list):
@@ -16,7 +15,7 @@ async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list):
 
     headers = {
         "Content-Type": "application/json-patch+json",
-        "Authentication": os.getenv("TOUTBOX_API_KEY")  # ✅ Corrigido para Authentication
+        "Authorization": os.getenv("TOUTBOX_API_KEY")
     }
 
     try:
@@ -56,6 +55,7 @@ async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list):
         "response": response.text
     }
 
+
 def montar_payload_patch_com_sla(prazo_dias_uteis: int) -> list:
     return [
         {
@@ -64,6 +64,7 @@ def montar_payload_patch_com_sla(prazo_dias_uteis: int) -> list:
             "value": str(prazo_dias_uteis)
         }
     ]
+
 
 async def enviar_patches_pendentes():
     db = SessionLocal()

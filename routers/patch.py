@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from database import SessionLocal
+from database import get_db
 from models.patch import PatchUpdate
 from models.pedido import Pedido
 from services.sla_service import buscar_sla
@@ -8,13 +8,6 @@ from services.patch_sender import enviar_patch_para_toutbox, montar_payload_patc
 import json
 
 router = APIRouter()
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 @router.post("/admin/verificar-patches")
 async def verificar_e_ajustar_patches(db: Session = Depends(get_db)):
@@ -43,7 +36,6 @@ async def verificar_e_ajustar_patches(db: Session = Depends(get_db)):
         patch.payload = json.dumps(payload)
         ajustados.append(patch)
 
-    # Commit das alterações de payload de uma vez
     if ajustados:
         db.add_all(ajustados)
         db.commit()
@@ -62,7 +54,6 @@ async def verificar_e_ajustar_patches(db: Session = Depends(get_db)):
         except Exception as e:
             resultados_envio.append({"nfkey": patch.nfkey, "erro": str(e)})
 
-    # Commit atualizações de status/resposta
     if ajustados:
         db.add_all(ajustados)
         db.commit()

@@ -42,7 +42,7 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": TOUTBOX_API_KEY
+        "Authorization": TOUTBOX_API_KEY  # Aqui o header correto!
     }
 
     nfkey = payload.get("eventsData", [{}])[0].get("nfKey")
@@ -138,9 +138,10 @@ def montar_payload_rastro(evento) -> dict:
         "receiverDocument": evento.receiver_document,
         "receiver": evento.receiver,
         "geo": geo,
-        "files": files
+        "files": files if files else []  # enviar lista vazia se não tiver arquivos
     }
 
+    # Retirar "driver" e "orderId" conforme especificação (não enviar se vazio ou errado)
     item = {
         "CourierId": evento.courier_id,
         "events": [evento_dict],
@@ -156,7 +157,7 @@ async def enviar_rastros_pendentes():
         eventos = db.query(Rastro).filter(Rastro.enviado.is_(False)).all()
 
         for evento in eventos:
-            # Verifica se o patch foi enviado com sucesso antes de enviar rastro
+            # Só envia se patch do mesmo nfkey com status 200 existir
             patch = db.query(PatchUpdate).filter_by(nfkey=evento.nfkey, status=200).first()
             if not patch:
                 print(f"Patch não enviado ou com erro para nfkey {evento.nfkey}. Ignorando envio do rastro.")

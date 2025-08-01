@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException 
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from models.dispatch import DispatchRequest
 from models.pedido import Pedido
@@ -10,10 +10,10 @@ import traceback
 
 router = APIRouter()
 
-@router.post("/", dependencies=[Depends(verificar_api_key)])  # Corrigido aqui
+@router.post("/", dependencies=[Depends(verificar_api_key)])
 async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db)):
     try:
-        if not pedido.Itens:
+        if not pedido.Itens or len(pedido.Itens) == 0:
             raise HTTPException(status_code=400, detail="Pedido sem itens.")
 
         def converter(obj):
@@ -23,7 +23,7 @@ async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db
 
         json_serializado = json.dumps(pedido.model_dump(), indent=2, ensure_ascii=False, default=converter)
 
-        # Pega a chave da NFe com segurança
+        # Tenta obter a chave da NFe
         chave_nfe = None
         if hasattr(pedido, "NFeChave") and pedido.NFeChave:
             chave_nfe = pedido.NFeChave
@@ -33,12 +33,17 @@ async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db
         if not chave_nfe:
             raise HTTPException(status_code=400, detail="Chave da NFe não encontrada no pedido.")
 
+        item = pedido.Itens[0]  # Usa o primeiro item para pegar dados de frete
+
+        uf_remetente = item.Frete.Remetente.Estado if item.Frete and item.Frete.Remetente else None
+        uf_destinatario = item.Frete.Destinatario.Estado if item.Frete and item.Frete.Destinatario else None
+
         pedido_salvo = Pedido(
             nfkey=chave_nfe,
             numero_pedido=pedido.NumeroPedido,
             data_criacao=pedido.CriacaoPedido,
-            uf_remetente=pedido.Remetente.UF if pedido.Remetente else None,
-            uf_destinatario=pedido.Destinatario.UF if pedido.Destinatario else None,
+            uf_remetente=uf_remetente,
+            uf_destinatario=uf_destinatario,
             json_completo=json_serializado
         )
 

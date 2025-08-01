@@ -9,8 +9,7 @@ load_dotenv()
 print("🔐 TOUTBOX_API_KEY carregada:", os.getenv("TOUTBOX_API_KEY"))
 print("🔐 API_KEY carregada:", os.getenv("API_KEY"))
 
-from routers import dispatch, patch, rastro, cancelamento, sla
-from utils.scheduler import start as start_scheduler
+from routers import dispatch, patch, rastro, cancelamento, sla, integracao
 
 app = FastAPI(
     title="API Integração Transportadora - Toutbox",
@@ -33,7 +32,7 @@ async def autenticar_api_key(request: Request, call_next):
         if request.url.path in rotas_livres:
             return await call_next(request)
 
-        rotas_sensiveis = ("/dispatch", "/patch", "/rastro", "/cancelamento")
+        rotas_sensiveis = ("/dispatch", "/patch", "/rastro", "/cancelamento", "/integracao")
         if any(request.url.path.startswith(r) for r in rotas_sensiveis):
             chave_enviada = request.headers.get("x-api-key")
             chave_configurada = os.getenv("API_KEY")
@@ -58,6 +57,7 @@ async def autenticar_api_key(request: Request, call_next):
 @app.on_event("startup")
 def iniciar_agendador():
     print("🚀 Iniciando agendador de tarefas automáticas...")
+    from utils.scheduler import start as start_scheduler
     start_scheduler()
 
 @app.get("/")
@@ -69,3 +69,4 @@ app.include_router(patch.router, prefix="/patch", tags=["patch"])
 app.include_router(rastro.router, prefix="/rastro", tags=["rastro"])
 app.include_router(cancelamento.router, prefix="/cancelamento", tags=["cancelamento"])
 app.include_router(sla.router, prefix="/sla", tags=["SLA"])
+app.include_router(integracao.router, prefix="/integracao", tags=["integração"])

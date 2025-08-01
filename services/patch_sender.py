@@ -6,13 +6,17 @@ from models.historico_patch import HistoricoPatch
 from models.patch import PatchUpdate
 from models.pedido import Pedido
 from services.sla_service import buscar_sla
+from dotenv import load_dotenv
+
+# Certifique-se de carregar as variáveis do .env
+load_dotenv()
 
 async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list):
     url = f"https://production.toutbox.com.br/api/v1/External/Order?nfkey={nfkey}&courier_id={courier_id}"
 
     headers = {
         "Content-Type": "application/json-patch+json",
-        "x-api-key": os.getenv("TOUTBOX_API_KEY"),
+        "Authentication": os.getenv("TOUTBOX_API_KEY")  # ✅ Corrigido para Authentication
     }
 
     try:
@@ -27,14 +31,12 @@ async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list):
 
     status = "enviado" if response.status_code in [200, 204] else f"erro {response.status_code}"
 
-    db = SessionLocal()
-    try:
-        historico = HistoricoPatch(
-            nfkey=nfkey,
-            payload=json.dumps(payload),
-            status=status,
-            response=response.text
-        )
+    return {
+        "nfkey": nfkey,
+        "status": status,
+        "response": response.text
+    }
+
         db.add(historico)
 
         patch = db.query(PatchUpdate).filter_by(nfkey=nfkey, courier_id=courier_id).first()

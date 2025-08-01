@@ -9,7 +9,7 @@ import json
 
 router = APIRouter()
 
-@router.post("/admin/verificar-patches")
+@router.patch("/admin/verificar-patches")
 async def verificar_e_ajustar_patches(db: Session = Depends(get_db)):
     patches_pendentes = db.query(PatchUpdate).filter(PatchUpdate.status.is_(None)).all()
 

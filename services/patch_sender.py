@@ -87,4 +87,25 @@ async def enviar_patches_pendentes():
                 continue
 
             sla_dias = buscar_sla(db, uf_origem=pedido.uf_remetente, uf_destino=pedido.uf_destinatario)
-            if sla_dias is Non_
+            if sla_dias is None:
+                print(f"⚠️ SLA não encontrado para {pedido.uf_remetente} -> {pedido.uf_destinatario}")
+                continue
+
+            payload = montar_payload_patch_com_sla(sla_dias)
+
+            # 💾 Salva payload antes de enviar
+            patch.payload = json.dumps(payload)
+            db.commit()
+
+            resultado = await enviar_patch_para_toutbox(
+                nfkey=patch.nfkey,
+                courier_id=patch.courier_id,
+                payload=payload
+            )
+            print(f"✅ PATCH enviado para nfkey {patch.nfkey}: {resultado['status']}")
+
+        except Exception as e:
+            print(f"❌ Erro ao enviar PATCH para nfkey {patch.nfkey}")
+            traceback.print_exc()
+
+    db.close()

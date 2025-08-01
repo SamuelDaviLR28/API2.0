@@ -15,3 +15,5 @@ class Pedido(Base):
     response = Column(Text, nullable=True)
     json_completo = Column(JSON, nullable=True)
     numero_pedido = Column(String, nullable=True)
+    numero_pedido_marketplace = Column(String, nullable=True)
+    numero_pedido_erp = Column(String, nullable=True)

@@ -34,6 +34,11 @@ async def receber_pedido(request: Request, db: Session = Depends(get_db)):
     if not nfkey or nfkey.strip() == "":
         raise HTTPException(status_code=400, detail="NFKey (NotaFiscal.Chave) não encontrada no JSON")
 
+    # Evita duplicação
+    pedido_existente = db.query(Pedido).filter_by(nfkey=nfkey).first()
+    if pedido_existente:
+        return {"message": "Pedido com essa nfkey já existe", "id": pedido_existente.id}
+
     novo_pedido = Pedido(
         json_completo=pedido_json,
         nfkey=nfkey,

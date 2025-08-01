@@ -41,7 +41,7 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
 
     headers = {
         "Content-Type": "application/json",
-        "Authentication": TOUTBOX_API_KEY  # Header ajustado conforme solicitado
+        "Authentication": TOUTBOX_API_KEY  # Usando Authentication sem Bearer
     }
 
     nfkey = payload.get("eventsData", [{}])[0].get("nfKey")
@@ -74,7 +74,8 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
             "response": msg_validacao
         }
 
-    print("🔍 Enviando com headers:", headers)
+    print("🔐 Headers:", headers)
+    print("📦 Payload:", json.dumps(payload, indent=2))
 
     try:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -144,14 +145,11 @@ def montar_payload_rastro(evento) -> dict:
 
     item = {
         "CourierId": evento.courier_id,
-        "events": [evento_dict]
+        "events": [evento_dict],
+        "nfKey": evento.nfkey
     }
 
-    # Não enviar orderId (ou enviar como None) para evitar erro com a chave no orderId
-    item["orderId"] = None
-
-    item["nfKey"] = evento.nfkey
-
+    # ❌ Não incluir orderId — solicitado para não enviar
     return item
 
 

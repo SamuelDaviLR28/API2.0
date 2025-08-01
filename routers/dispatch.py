@@ -16,21 +16,28 @@ async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db
         if not pedido.Itens:
             raise HTTPException(status_code=400, detail="Pedido sem itens.")
 
-        # ✅ Função para converter datetime
         def converter(obj):
             if isinstance(obj, datetime):
                 return obj.isoformat()
             raise TypeError(f"Tipo {type(obj)} não é serializável")
 
-        # ✅ Serializa com suporte a datetime
         json_serializado = json.dumps(pedido.model_dump(), indent=2, ensure_ascii=False, default=converter)
 
         print("✅ Pedido recebido:")
         print(json_serializado)
 
-        # ✅ Monta e salva o pedido no banco com os campos necessários
+        # Tenta obter a chave NF-e de forma segura
+        chave_nfe = None
+        if hasattr(pedido, "NFeChave") and pedido.NFeChave:
+            chave_nfe = pedido.NFeChave
+        elif hasattr(pedido, "NotaFiscal") and pedido.NotaFiscal and hasattr(pedido.NotaFiscal, "Chave"):
+            chave_nfe = pedido.NotaFiscal.Chave
+
+        if not chave_nfe:
+            raise HTTPException(status_code=400, detail="Chave da NFe não encontrada no pedido.")
+
         pedido_salvo = Pedido(
-            nfkey=pedido.NFeChave,
+            nfkey=chave_nfe,
             numero_pedido=pedido.NumeroPedido,
             data_criacao=pedido.CriacaoPedido,
             uf_remetente=pedido.Remetente.UF if pedido.Remetente else None,

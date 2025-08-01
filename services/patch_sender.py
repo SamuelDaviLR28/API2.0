@@ -22,7 +22,7 @@ async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list):
     }
 
     print(f"📦 PATCH → nfkey: {nfkey}, courier_id: {courier_id}")
-    print(f"📤 Payload:\n{json.dumps(payload, indent=2)}")
+    print(f"📤 Payload:\n{json.dumps(payload, indent=2, ensure_ascii=False)}")
 
     try:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -42,7 +42,7 @@ async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list):
     try:
         historico = HistoricoPatch(
             nfkey=nfkey,
-            payload=json.dumps(payload),
+            payload=json.dumps(payload, ensure_ascii=False),
             status=status,
             response=response.text[:255]
         )
@@ -52,6 +52,7 @@ async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list):
         if patch:
             patch.status = response.status_code
             patch.response = response.text
+            db.add(patch)
 
         db.commit()
     finally:
@@ -63,8 +64,10 @@ async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list):
         "response": response.text
     }
 
-
 def montar_payload_patch_com_sla(prazo_dias_uteis: int) -> list:
+    """
+    Monta o payload para o PATCH com o prazo dos dias úteis.
+    """
     return [
         {
             "op": "replace",
@@ -73,8 +76,11 @@ def montar_payload_patch_com_sla(prazo_dias_uteis: int) -> list:
         }
     ]
 
-
 async def enviar_patches_pendentes():
+    """
+    Busca patches pendentes no banco, monta o payload baseado no SLA
+    e envia o PATCH para a API da Toutbox.
+    """
     db = SessionLocal()
     patches = db.query(PatchUpdate).filter(PatchUpdate.status.is_(None)).all()
     print(f"🕒 Enviando {len(patches)} patches pendentes...")
@@ -88,13 +94,14 @@ async def enviar_patches_pendentes():
 
             sla_dias = buscar_sla(db, uf_origem=pedido.uf_remetente, uf_destino=pedido.uf_destinatario)
             if sla_dias is None:
-                print(f"⚠️ SLA não encontrado para {pedido.uf_remetente} -> {pedido.uf_destinatario}")
+                print(f"⚠️ SLA não encontrado para rota {pedido.uf_remetente} -> {pedido.uf_destinatario}")
                 continue
 
             payload = montar_payload_patch_com_sla(sla_dias)
 
-            # 💾 Salva payload antes de enviar
-            patch.payload = json.dumps(payload)
+            # Atualiza o payload no patch antes de enviar
+            patch.payload = json.dumps(payload, ensure_ascii=False)
+            db.add(patch)
             db.commit()
 
             resultado = await enviar_patch_para_toutbox(

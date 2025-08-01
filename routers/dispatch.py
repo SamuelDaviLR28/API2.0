@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException 
 from sqlalchemy.orm import Session
 from models.dispatch import DispatchRequest
 from models.pedido import Pedido
@@ -10,38 +10,27 @@ import traceback
 
 router = APIRouter()
 
-@router.post("/", dependencies=[Depends(verificar_api_key)])
+@router.post("/dispatch", dependencies=[Depends(verificar_api_key)])
 async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db)):
     try:
-        if not pedido.Itens or len(pedido.Itens) == 0:
+        if not pedido.Itens:
             raise HTTPException(status_code=400, detail="Pedido sem itens.")
 
+        # ✅ Função para converter datetime
         def converter(obj):
             if isinstance(obj, datetime):
                 return obj.isoformat()
             raise TypeError(f"Tipo {type(obj)} não é serializável")
 
+        # ✅ Serializa com suporte a datetime
         json_serializado = json.dumps(pedido.model_dump(), indent=2, ensure_ascii=False, default=converter)
 
-        # Obtém chave da NFe do primeiro item
-        item = pedido.Itens[0]
-        nota_fiscal = item.NotaFiscal
-        if not nota_fiscal or not nota_fiscal.Chave:
-            raise HTTPException(status_code=400, detail="Chave da NFe não encontrada no pedido.")
-        
-        chave_nfe = nota_fiscal.Chave
+        print("✅ Pedido recebido:")
+        print(json_serializado)
 
-        # Dados de UF
-        uf_remetente = item.Frete.Remetente.Estado if item.Frete and item.Frete.Remetente else None
-        uf_destinatario = item.Frete.Destinatario.Estado if item.Frete and item.Frete.Destinatario else None
-
-        # Cria e salva o pedido
         pedido_salvo = Pedido(
-            nfkey=chave_nfe,
             numero_pedido=pedido.NumeroPedido,
             data_criacao=pedido.CriacaoPedido,
-            uf_remetente=uf_remetente,
-            uf_destinatario=uf_destinatario,
             json_completo=json_serializado
         )
 
@@ -54,4 +43,4 @@ async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db
     except Exception as e:
         print("❌ Erro ao processar pedido:", str(e))
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail="Erro interno ao salvar o pedido.")
+        raise HTTPException(status_code=500, detail=str(e))

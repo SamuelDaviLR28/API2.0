@@ -18,6 +18,9 @@ async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list):
         "Authorization": os.getenv("TOUTBOX_API_KEY")
     }
 
+    print(f"📦 PATCH → nfkey: {nfkey}, courier_id: {courier_id}")
+    print(f"📤 Payload:\n{json.dumps(payload, indent=2)}")
+
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.patch(url, json=payload, headers=headers)
@@ -85,6 +88,10 @@ async def enviar_patches_pendentes():
             continue
 
         payload = montar_payload_patch_com_sla(sla_dias)
+
+        # 🔄 Salva o payload no banco antes de enviar
+        patch.payload = json.dumps(payload)
+        db.commit()
 
         try:
             resultado = await enviar_patch_para_toutbox(

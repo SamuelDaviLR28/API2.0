@@ -40,16 +40,20 @@ async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list):
 
     db = SessionLocal()
     try:
+        # Grava o histórico do envio, incluindo a data/hora atual
         historico = HistoricoPatch(
             nfkey=nfkey,
             payload=json.dumps(payload, ensure_ascii=False),
             status=status,
             response=response.text[:255]
+            # enviado_em será populado automaticamente com default do BD (CURRENT_TIMESTAMP)
         )
         db.add(historico)
 
+        # Atualiza status e resposta no patch
         patch = db.query(PatchUpdate).filter_by(nfkey=nfkey, courier_id=courier_id).first()
         if patch:
+            # Use status HTTP como inteiro para facilitar consultas e controle
             patch.status = response.status_code
             patch.response = response.text
             db.add(patch)
@@ -65,9 +69,6 @@ async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list):
     }
 
 def montar_payload_patch_com_sla(prazo_dias_uteis: int) -> list:
-    """
-    Monta o payload para o PATCH com o prazo dos dias úteis.
-    """
     return [
         {
             "op": "replace",
@@ -77,10 +78,6 @@ def montar_payload_patch_com_sla(prazo_dias_uteis: int) -> list:
     ]
 
 async def enviar_patches_pendentes():
-    """
-    Busca patches pendentes no banco, monta o payload baseado no SLA
-    e envia o PATCH para a API da Toutbox.
-    """
     db = SessionLocal()
     patches = db.query(PatchUpdate).filter(PatchUpdate.status.is_(None)).all()
     print(f"🕒 Enviando {len(patches)} patches pendentes...")
@@ -90,16 +87,24 @@ async def enviar_patches_pendentes():
             pedido = db.query(Pedido).filter_by(nfkey=patch.nfkey).first()
             if not pedido:
                 print(f"⚠️ Pedido não encontrado para nfkey {patch.nfkey}")
+                # Atualiza o patch para evitar tentar sempre (defina um status customizado, ex: -1)
+                patch.status = -1
+                patch.response = "Pedido não encontrado"
+                db.add(patch)
+                db.commit()
                 continue
 
             sla_dias = buscar_sla(db, uf_origem=pedido.uf_remetente, uf_destino=pedido.uf_destinatario)
             if sla_dias is None:
                 print(f"⚠️ SLA não encontrado para rota {pedido.uf_remetente} -> {pedido.uf_destinatario}")
+                patch.status = -2
+                patch.response = "SLA não encontrado"
+                db.add(patch)
+                db.commit()
                 continue
 
             payload = montar_payload_patch_com_sla(sla_dias)
 
-            # Atualiza o payload no patch antes de enviar
             patch.payload = json.dumps(payload, ensure_ascii=False)
             db.add(patch)
             db.commit()

@@ -23,10 +23,7 @@ async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db
 
         json_serializado = json.dumps(pedido.model_dump(), indent=2, ensure_ascii=False, default=converter)
 
-        print("✅ Pedido recebido:")
-        print(json_serializado)
-
-        # Tenta obter a chave NF-e de forma segura
+        # Tenta pegar a chave NF-e de forma segura
         chave_nfe = None
         if hasattr(pedido, "NFeChave") and pedido.NFeChave:
             chave_nfe = pedido.NFeChave

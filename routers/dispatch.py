@@ -23,21 +23,19 @@ async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db
 
         json_serializado = json.dumps(pedido.model_dump(), indent=2, ensure_ascii=False, default=converter)
 
-        # Tenta obter a chave da NFe
-        chave_nfe = None
-        if hasattr(pedido, "NFeChave") and pedido.NFeChave:
-            chave_nfe = pedido.NFeChave
-        elif hasattr(pedido, "NotaFiscal") and pedido.NotaFiscal and hasattr(pedido.NotaFiscal, "Chave"):
-            chave_nfe = pedido.NotaFiscal.Chave
-
-        if not chave_nfe:
+        # Obtém chave da NFe do primeiro item
+        item = pedido.Itens[0]
+        nota_fiscal = item.NotaFiscal
+        if not nota_fiscal or not nota_fiscal.Chave:
             raise HTTPException(status_code=400, detail="Chave da NFe não encontrada no pedido.")
+        
+        chave_nfe = nota_fiscal.Chave
 
-        item = pedido.Itens[0]  # Usa o primeiro item para pegar dados de frete
-
+        # Dados de UF
         uf_remetente = item.Frete.Remetente.Estado if item.Frete and item.Frete.Remetente else None
         uf_destinatario = item.Frete.Destinatario.Estado if item.Frete and item.Frete.Destinatario else None
 
+        # Cria e salva o pedido
         pedido_salvo = Pedido(
             nfkey=chave_nfe,
             numero_pedido=pedido.NumeroPedido,
@@ -56,4 +54,4 @@ async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db
     except Exception as e:
         print("❌ Erro ao processar pedido:", str(e))
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Erro interno ao salvar o pedido.")

@@ -16,7 +16,7 @@ async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db
         if not pedido.Itens or len(pedido.Itens) == 0:
             raise HTTPException(status_code=400, detail="Pedido sem itens.")
 
-        # ✅ Função para serializar datetime
+        # Converte datetime para string
         def converter(obj):
             if isinstance(obj, datetime):
                 return obj.isoformat()
@@ -24,20 +24,16 @@ async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db
 
         json_serializado = json.dumps(pedido.model_dump(), indent=2, ensure_ascii=False, default=converter)
 
-        # ✅ Extrai a NFe
-        chave_nfe = None
         item = pedido.Itens[0]
 
-        if hasattr(item, "NotaFiscal") and item.NotaFiscal and hasattr(item.NotaFiscal, "Chave"):
-            chave_nfe = item.NotaFiscal.Chave
-
+        # Extrai chave da NFe
+        chave_nfe = item.NotaFiscal.Chave if item.NotaFiscal else None
         if not chave_nfe:
-            raise HTTPException(status_code=400, detail="Chave da NFe não encontrada.")
+            raise HTTPException(status_code=400, detail="Chave da NFe não encontrada no item.")
 
-        # ✅ Extrai UF remetente e destinatário
+        # Extrai UF
         uf_remetente = item.Frete.Remetente.Estado if item.Frete and item.Frete.Remetente else None
         uf_destinatario = item.Frete.Destinatario.Estado if item.Frete and item.Frete.Destinatario else None
-
         if not uf_remetente or not uf_destinatario:
             raise HTTPException(status_code=400, detail="UF de remetente ou destinatário ausente.")
 

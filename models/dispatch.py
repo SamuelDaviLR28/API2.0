@@ -65,28 +65,6 @@ class Frete(BaseModel):
     Tomador: Pessoa
 
 
-class Item(BaseModel):
-    IdUnico: str
-    QuantidadeProdutos: int
-    Volumes: int
-    Largura: Optional[float]
-    Peso: Optional[float]
-    Altura: Optional[float]
-    Comprimento: Optional[float]
-    Produtos: List[Produto]
-    Frete: Frete
-
-
-class CanalDeVenda(BaseModel):
-    Id: str
-    Nome: str
-
-
-class Warehouse(BaseModel):
-    Id: str
-    Nome: str
-
-
 class NotaFiscal(BaseModel):
     DataEmissao: datetime
     Numero: int
@@ -114,6 +92,30 @@ class InfosAdicionais(BaseModel):
     SegmentoCliente: Optional[str] = None
 
 
+class Item(BaseModel):
+    IdUnico: str
+    QuantidadeProdutos: int
+    Volumes: int
+    Largura: Optional[float]
+    Peso: Optional[float]
+    Altura: Optional[float]
+    Comprimento: Optional[float]
+    Produtos: List[Produto]
+    Frete: Frete
+    NotaFiscal: Optional[NotaFiscal]
+    InfosAdicionais: Optional[InfosAdicionais]
+
+
+class CanalDeVenda(BaseModel):
+    Id: str
+    Nome: str
+
+
+class Warehouse(BaseModel):
+    Id: str
+    Nome: str
+
+
 class DispatchRequest(BaseModel):
     CriacaoPedido: datetime
     NumeroPedido: str
@@ -123,5 +125,3 @@ class DispatchRequest(BaseModel):
     CanalDeVenda: Optional[CanalDeVenda]
     Warehouse: Optional[Warehouse]
     Itens: List[Item]
-    NotaFiscal: Optional[NotaFiscal]
-    InfosAdicionais: Optional[InfosAdicionais]

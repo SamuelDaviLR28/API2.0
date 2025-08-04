@@ -2,7 +2,6 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 
-
 class Produto(BaseModel):
     Descricao: str
     Preco: float
@@ -16,7 +15,6 @@ class Produto(BaseModel):
     Comprimento: Optional[float] = None
     Largura: Optional[float] = None
     Peso: Optional[float] = None
-
 
 class Transportadora(BaseModel):
     Id: str
@@ -34,7 +32,6 @@ class Transportadora(BaseModel):
     ValorDeclarado: float
     ValorFrete: float
     Prioridade: bool
-
 
 class Pessoa(BaseModel):
     Nome: str
@@ -57,13 +54,11 @@ class Pessoa(BaseModel):
     NomeCentroDistribuicao: Optional[str] = None
     CodigoCentroDistribuicao: Optional[str] = None
 
-
 class Frete(BaseModel):
     Transportadora: Transportadora
     Destinatario: Pessoa
     Remetente: Pessoa
     Tomador: Pessoa
-
 
 class NotaFiscal(BaseModel):
     DataEmissao: datetime
@@ -74,7 +69,6 @@ class NotaFiscal(BaseModel):
     ValorTotalProdutos: float
     Cfop: Optional[str] = None
     StringXML: Optional[str] = None
-
 
 class InfosAdicionais(BaseModel):
     EntregaAgendada: bool
@@ -91,7 +85,6 @@ class InfosAdicionais(BaseModel):
     IdDestinatario: Optional[str] = None
     SegmentoCliente: Optional[str] = None
 
-
 class Item(BaseModel):
     IdUnico: str
     QuantidadeProdutos: int
@@ -102,35 +95,24 @@ class Item(BaseModel):
     Comprimento: Optional[float]
     Produtos: List[Produto]
     Frete: Frete
-    NotaFiscal: NotaFiscal  # ✅ Agora obrigatório
-    InfosAdicionais: InfosAdicionais  # ✅ Agora obrigatório
-
+    NotaFiscal: NotaFiscal
+    InfosAdicionais: InfosAdicionais
 
 class CanalDeVenda(BaseModel):
     Id: str
     Nome: str
-    Tipo: Optional[str] = None
-
+    Tipo: Optional[str] = None  # <-- Adicionado
 
 class Warehouse(BaseModel):
     Id: str
     Nome: str
 
-
 class DispatchRequest(BaseModel):
     CriacaoPedido: datetime
-    DataPagamento: Optional[datetime] = None
     NumeroPedido: str
-    NumeroPedidoMarketplace: Optional[str] = None
-    NumeroPedidoErp: Optional[str] = None
-    IdsAuxiliares: Optional[str] = None
-    NumeroPedidoAux: Optional[str] = None
-    Marketplace: Optional[str] = None
-    Marca: Optional[str] = None
-    Seller: Optional[str] = None
-    CanalDeVenda: Optional[CanalDeVenda]  # ✅ Aceita objeto, sem = None
-    Warehouse: Optional[Warehouse]        # ✅ Aceita objeto, sem = None
-    UnidadeDeNegocio: Optional[str] = None
-    Rede: Optional[str] = None
-    Campanha: Optional[str] = None
+    NumeroPedidoMarketplace: Optional[str]
+    NumeroPedidoErp: Optional[str]
+    NumeroPedidoAux: str
+    CanalDeVenda: Optional[CanalDeVenda]
+    Warehouse: Optional[Warehouse]
     Itens: List[Item]

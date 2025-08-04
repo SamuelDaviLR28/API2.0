@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 
+
 class Produto(BaseModel):
     Descricao: str
     Preco: float
@@ -15,6 +16,7 @@ class Produto(BaseModel):
     Comprimento: Optional[float] = None
     Largura: Optional[float] = None
     Peso: Optional[float] = None
+
 
 class Transportadora(BaseModel):
     Id: str
@@ -32,6 +34,7 @@ class Transportadora(BaseModel):
     ValorDeclarado: float
     ValorFrete: float
     Prioridade: bool
+
 
 class Pessoa(BaseModel):
     Nome: str
@@ -54,11 +57,13 @@ class Pessoa(BaseModel):
     NomeCentroDistribuicao: Optional[str] = None
     CodigoCentroDistribuicao: Optional[str] = None
 
+
 class Frete(BaseModel):
     Transportadora: Transportadora
     Destinatario: Pessoa
     Remetente: Pessoa
     Tomador: Pessoa
+
 
 class NotaFiscal(BaseModel):
     DataEmissao: datetime
@@ -69,6 +74,7 @@ class NotaFiscal(BaseModel):
     ValorTotalProdutos: float
     Cfop: Optional[str] = None
     StringXML: Optional[str] = None
+
 
 class InfosAdicionais(BaseModel):
     EntregaAgendada: bool
@@ -85,6 +91,7 @@ class InfosAdicionais(BaseModel):
     IdDestinatario: Optional[str] = None
     SegmentoCliente: Optional[str] = None
 
+
 class Item(BaseModel):
     IdUnico: str
     QuantidadeProdutos: int
@@ -95,17 +102,21 @@ class Item(BaseModel):
     Comprimento: Optional[float]
     Produtos: List[Produto]
     Frete: Frete
-    NotaFiscal: NotaFiscal
-    InfosAdicionais: InfosAdicionais
+    # ❌ Removidos:
+    # NotaFiscal: NotaFiscal
+    # InfosAdicionais: InfosAdicionais
+
 
 class CanalDeVenda(BaseModel):
     Id: str
     Nome: str
-    Tipo: Optional[str] = None  # <-- Adicionado
+    Tipo: Optional[str] = None
+
 
 class Warehouse(BaseModel):
     Id: str
     Nome: str
+
 
 class DispatchRequest(BaseModel):
     CriacaoPedido: datetime
@@ -115,4 +126,6 @@ class DispatchRequest(BaseModel):
     NumeroPedidoAux: str
     CanalDeVenda: Optional[CanalDeVenda]
     Warehouse: Optional[Warehouse]
+    NotaFiscal: NotaFiscal                    # ✅ Agora aqui
+    InfosAdicionais: InfosAdicionais          # ✅ Agora aqui
     Itens: List[Item]

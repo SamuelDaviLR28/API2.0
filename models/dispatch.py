@@ -34,17 +34,6 @@ class Transportadora(BaseModel):
     ValorDeclarado: float
     ValorFrete: float
     Prioridade: bool
-    CodigoAutorizacao: Optional[str] = None
-    PrazoDiasUteis: Optional[int] = None
-    PrazoEntregaFinal: Optional[str] = None
-    CNPJ: Optional[str] = None
-    ResponsavelRecebimento: Optional[str] = None
-    SenhaVerificacao: Optional[str] = None
-    TipoOperacao: Optional[str] = None
-    TipoDevolucao: Optional[str] = None
-    MotivoDevolucao: Optional[str] = None
-    TipoPrioridade: Optional[str] = None
-    ServicosAdicionais: Optional[str] = None
 
 
 class Pessoa(BaseModel):
@@ -67,9 +56,6 @@ class Pessoa(BaseModel):
     Loja: Optional[str] = None
     NomeCentroDistribuicao: Optional[str] = None
     CodigoCentroDistribuicao: Optional[str] = None
-    Lat: Optional[float] = None
-    Long: Optional[float] = None
-    Referencia: Optional[str] = None
 
 
 class Frete(BaseModel):
@@ -83,9 +69,9 @@ class NotaFiscal(BaseModel):
     DataEmissao: datetime
     Numero: int
     Serie: int
+    Chave: Optional[str]
     ValorTotal: float
     ValorTotalProdutos: float
-    Chave: Optional[str]
     Cfop: Optional[str] = None
     StringXML: Optional[str] = None
 
@@ -116,8 +102,8 @@ class Item(BaseModel):
     Comprimento: Optional[float]
     Produtos: List[Produto]
     Frete: Frete
-    NotaFiscal: NotaFiscal
-    InfosAdicionais: InfosAdicionais
+    NotaFiscal: NotaFiscal  # ✅ Agora obrigatório
+    InfosAdicionais: InfosAdicionais  # ✅ Agora obrigatório
 
 
 class CanalDeVenda(BaseModel):
@@ -137,17 +123,14 @@ class DispatchRequest(BaseModel):
     NumeroPedido: str
     NumeroPedidoMarketplace: Optional[str] = None
     NumeroPedidoErp: Optional[str] = None
-    NumeroPedidoAux: Optional[str] = None
     IdsAuxiliares: Optional[str] = None
+    NumeroPedidoAux: Optional[str] = None
     Marketplace: Optional[str] = None
     Marca: Optional[str] = None
     Seller: Optional[str] = None
-    CanalDeVenda: Optional[CanalDeVenda] = None
-    Warehouse: Optional[Warehouse] = None
+    CanalDeVenda: Optional[CanalDeVenda]  # ✅ Aceita objeto, sem = None
+    Warehouse: Optional[Warehouse]        # ✅ Aceita objeto, sem = None
     UnidadeDeNegocio: Optional[str] = None
     Rede: Optional[str] = None
     Campanha: Optional[str] = None
     Itens: List[Item]
-
-    class Config:
-        extra = "ignore"

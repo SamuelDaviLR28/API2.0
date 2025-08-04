@@ -17,30 +17,31 @@ async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db
         if not pedido.Itens or len(pedido.Itens) == 0:
             raise HTTPException(status_code=400, detail="Pedido sem itens.")
 
-        # ✅ Função para serializar datetime
         def converter(obj):
             if isinstance(obj, datetime):
                 return obj.isoformat()
             raise TypeError(f"Tipo {type(obj)} não é serializável")
 
-        # ✅ Serializa todo o pedido original (com suporte a datetime)
         json_serializado = json.dumps(pedido.model_dump(), indent=2, ensure_ascii=False, default=converter)
-
-        # ✅ Usa o primeiro item para extrair chave e UFs
         item = pedido.Itens[0]
 
-        # ✅ Extrai chave da nota fiscal
         chave_nfe = item.NotaFiscal.Chave if item.NotaFiscal else None
         if not chave_nfe:
             raise HTTPException(status_code=400, detail="Chave da NFe não encontrada no item.")
 
-        # ✅ Extrai UFs
         uf_remetente = item.Frete.Remetente.Estado if item.Frete and item.Frete.Remetente else None
         uf_destinatario = item.Frete.Destinatario.Estado if item.Frete and item.Frete.Destinatario else None
         if not uf_remetente or not uf_destinatario:
             raise HTTPException(status_code=400, detail="UF de remetente ou destinatário ausente.")
 
-        # ✅ Cria e salva o pedido no banco
+        # 🔍 Verifica se já existe um pedido com essa nfkey
+        pedido_existente = db.query(Pedido).filter_by(nfkey=chave_nfe).first()
+        if pedido_existente:
+            return {
+                "status": "Pedido já existente",
+                "id": pedido_existente.id
+            }
+
         pedido_salvo = Pedido(
             nfkey=chave_nfe,
             numero_pedido=pedido.NumeroPedido,
@@ -54,10 +55,8 @@ async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db
         db.commit()
         db.refresh(pedido_salvo)
 
-        # ✅ Obtém courier_id
+        # 🚚 Cria PATCH pendente se não existir
         courier_id = int(item.Frete.Transportadora.Id)
-
-        # ✅ Cria PATCH pendente se ainda não existir
         patch_existente = db.query(PatchUpdate).filter_by(nfkey=chave_nfe, courier_id=courier_id).first()
         if not patch_existente:
             novo_patch = PatchUpdate(

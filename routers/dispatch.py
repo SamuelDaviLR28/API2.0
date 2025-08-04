@@ -23,18 +23,23 @@ async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db
             raise TypeError(f"Tipo {type(obj)} não é serializável")
 
         json_serializado = json.dumps(pedido.model_dump(), indent=2, ensure_ascii=False, default=converter)
+
         item = pedido.Itens[0]
 
-        chave_nfe = item.NotaFiscal.Chave if item.NotaFiscal else None
-        if not chave_nfe:
-            raise HTTPException(status_code=400, detail="Chave da NFe não encontrada no item.")
+        if not item.NotaFiscal or not item.NotaFiscal.Chave:
+            raise HTTPException(status_code=400, detail="Item sem chave de NFe válida.")
 
-        uf_remetente = item.Frete.Remetente.Estado if item.Frete and item.Frete.Remetente else None
-        uf_destinatario = item.Frete.Destinatario.Estado if item.Frete and item.Frete.Destinatario else None
+        chave_nfe = item.NotaFiscal.Chave
+
+        if not item.Frete or not item.Frete.Remetente or not item.Frete.Destinatario:
+            raise HTTPException(status_code=400, detail="Faltam dados de Frete, Remetente ou Destinatário.")
+
+        uf_remetente = item.Frete.Remetente.Estado
+        uf_destinatario = item.Frete.Destinatario.Estado
+
         if not uf_remetente or not uf_destinatario:
-            raise HTTPException(status_code=400, detail="UF de remetente ou destinatário ausente.")
+            raise HTTPException(status_code=400, detail="UF do remetente ou destinatário ausente.")
 
-        # 🔍 Verifica se já existe um pedido com essa nfkey
         pedido_existente = db.query(Pedido).filter_by(nfkey=chave_nfe).first()
         if pedido_existente:
             return {
@@ -55,8 +60,12 @@ async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db
         db.commit()
         db.refresh(pedido_salvo)
 
-        # 🚚 Cria PATCH pendente se não existir
+        # Valida courier_id
+        if not item.Frete.Transportadora or not item.Frete.Transportadora.Id:
+            raise HTTPException(status_code=400, detail="Transportadora ausente ou inválida.")
+
         courier_id = int(item.Frete.Transportadora.Id)
+
         patch_existente = db.query(PatchUpdate).filter_by(nfkey=chave_nfe, courier_id=courier_id).first()
         if not patch_existente:
             novo_patch = PatchUpdate(
@@ -69,6 +78,6 @@ async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db
         return {"status": "Pedido salvo com sucesso", "id": pedido_salvo.id}
 
     except Exception as e:
-        print("❌ Erro ao processar pedido:", str(e))
+        print(f"❌ Erro ao processar pedido {pedido.NumeroPedido}: {str(e)}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Erro interno ao salvar o pedido.")

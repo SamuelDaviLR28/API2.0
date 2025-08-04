@@ -26,10 +26,10 @@ async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db
 
         item = pedido.Itens[0]
 
-        if not item.NotaFiscal or not item.NotaFiscal.Chave:
-            raise HTTPException(status_code=400, detail="Item sem chave de NFe válida.")
+        if not pedido.NotaFiscal or not pedido.NotaFiscal.Chave:
+            raise HTTPException(status_code=400, detail="Nota Fiscal ausente ou sem chave.")
 
-        chave_nfe = item.NotaFiscal.Chave
+        chave_nfe = pedido.NotaFiscal.Chave
 
         if not item.Frete or not item.Frete.Remetente or not item.Frete.Destinatario:
             raise HTTPException(status_code=400, detail="Faltam dados de Frete, Remetente ou Destinatário.")
@@ -60,7 +60,6 @@ async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db
         db.commit()
         db.refresh(pedido_salvo)
 
-        # Valida courier_id
         if not item.Frete.Transportadora or not item.Frete.Transportadora.Id:
             raise HTTPException(status_code=400, detail="Transportadora ausente ou inválida.")
 

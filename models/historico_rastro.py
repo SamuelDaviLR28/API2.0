@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime, func
-from database import Base  # <- corrigido aqui
+from database import Base
 
 class HistoricoRastro(Base):
     __tablename__ = "historico_rastro"

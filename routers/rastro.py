@@ -9,7 +9,7 @@ from datetime import datetime
 
 router = APIRouter()
 
-@router.post("/", dependencies=[Depends(verificar_api_key)])
+@router.post("/rastro", dependencies=[Depends(verificar_api_key)])
 def receber_rastro(data: dict, db: Session = Depends(get_db)):
     try:
         events_data = data.get("eventsData", [])

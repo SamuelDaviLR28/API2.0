@@ -3,7 +3,6 @@ import os
 import json
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
-from database import SessionLocal
 from models.rastro import Rastro
 from models.historico_rastro import HistoricoRastro
 from models.patch import PatchUpdate
@@ -38,7 +37,18 @@ def montar_payload(evento: dict, nfkey: str, courier_id: int):
         ]
     }
 
-def enviar_rastros_pendentes(db: Session):
+async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
+    headers = {
+        "x-api-key": TOUTBOX_API_KEY,
+        "Content-Type": "application/json"
+    }
+    async with httpx.AsyncClient(timeout=20) as client:
+        response = await client.post(TOUTBOX_API_URL, json=payload, headers=headers)
+
+    status = "enviado" if response.status_code in (200, 204) else f"erro {response.status_code}"
+    return {"status": status, "response": response.text}
+
+async def enviar_rastros_pendentes(db: Session):
     pendentes = db.query(Rastro).filter(Rastro.status == "pendente").all()
     
     for rastro in pendentes:
@@ -64,27 +74,17 @@ def enviar_rastros_pendentes(db: Session):
 
             payload_formatado = montar_payload(evento, rastro.nfkey, courier_id)
 
-            headers = {
-                "x-api-key": TOUTBOX_API_KEY,
-                "Content-Type": "application/json"
-            }
+            resultado = await enviar_rastro_para_toutbox(payload_formatado, courier_id)
 
-            response = httpx.post(
-                TOUTBOX_API_URL,
-                headers=headers,
-                json=payload_formatado,
-                timeout=20
-            )
-
-            rastro.status = "enviado" if response.status_code == 200 else f"erro {response.status_code}"
-            rastro.response = response.text
+            rastro.status = resultado["status"]
+            rastro.response = resultado["response"]
             db.commit()
 
             historico = HistoricoRastro(
                 nfkey=rastro.nfkey,
                 payload=json.dumps(payload_formatado, ensure_ascii=False),
                 status=rastro.status,
-                response=response.text
+                response=resultado["response"]
             )
             db.add(historico)
             db.commit()

@@ -6,6 +6,8 @@ from database import SessionLocal
 from models.rastro import Rastro
 from models.historico_rastro import HistoricoRastro
 from models.patch import PatchUpdate
+from models.pedido import Pedido  
+
 
 
 load_dotenv()
@@ -101,4 +103,5 @@ def enviar_rastros_pendentes(db: Session):
             rastro.status = "erro"
             rastro.response = str(e)
             db.commit()
+
 

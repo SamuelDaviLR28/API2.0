@@ -3,12 +3,11 @@ import os
 import json
 from dotenv import load_dotenv
 from database import SessionLocal
-from sqlalchemy.orm import Session  # IMPORT ADICIONADO
+from sqlalchemy.orm import Session
 from models.rastro import Rastro
 from models.historico_rastro import HistoricoRastro
 from models.patch import PatchUpdate
 from models.pedido import Pedido
-
 
 load_dotenv()
 
@@ -18,7 +17,6 @@ TOUTBOX_API_KEY = os.getenv("TOUTBOX_API_KEY")
 
 def montar_payload_toutbox(rastro: Rastro, pedido: Pedido):
     try:
-        # Extrair payload original (conforme salvo no banco)
         dados_evento = json.loads(rastro.payload)
 
         eventos = dados_evento.get("events", [])
@@ -36,7 +34,7 @@ def montar_payload_toutbox(rastro: Rastro, pedido: Pedido):
                 "address": evento.get("address"),
                 "description": evento.get("description", ""),
                 "receiver": evento.get("receiver", None),
-                "files": evento.get("files", []),  # deve ser array, vazio se não houver imagens
+                "files": evento.get("files", []),
             })
 
         payload = {
@@ -80,7 +78,7 @@ def enviar_rastros_pendentes(db: Session):
                 "x-api-key": TOUTBOX_API_KEY
             }
 
-            response = requests.post(TOUTBOX_URL, json=payload, headers=headers)
+            response = httpx.post(TOUTBOX_URL, json=payload, headers=headers)
 
             rastro.response = response.text
             if response.status_code == 200:
@@ -88,7 +86,6 @@ def enviar_rastros_pendentes(db: Session):
             else:
                 rastro.status = f"erro {response.status_code}"
 
-            # Salva histórico
             historico = HistoricoRastro(
                 nfkey=rastro.nfkey,
                 courier_id=rastro.courier_id,
@@ -103,6 +100,3 @@ def enviar_rastros_pendentes(db: Session):
             rastro.status = "erro"
             rastro.response = str(e)
             db.commit()
-
-
-

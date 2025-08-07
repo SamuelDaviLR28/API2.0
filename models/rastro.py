@@ -4,7 +4,6 @@ from database import Base
 
 class Rastro(Base):
     __tablename__ = "rastros"
-
     id = Column(Integer, primary_key=True, index=True)
     nfkey = Column(String(50), nullable=False, index=True)
     courier_id = Column(Integer, nullable=True)
@@ -25,9 +24,6 @@ class Rastro(Base):
     enviado = Column(Boolean, default=False, nullable=False)
     status = Column(String(20), nullable=True)
     response = Column(Text, nullable=True)
-    # Se usar PostgreSQL, recomendo usar JSON ao invés de Text para o payload:
-    # from sqlalchemy.dialects.postgresql import JSON
-    # payload = Column(JSON, nullable=True)
     payload = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

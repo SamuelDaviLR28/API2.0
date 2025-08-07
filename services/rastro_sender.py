@@ -12,7 +12,7 @@ load_dotenv()
 TOUTBOX_API_URL = os.getenv("TOUTBOX_EVENT_API", "http://courier.toutbox.com.br/api/v1/Parcel/Event")
 TOUTBOX_API_KEY = os.getenv("TOUTBOX_API_KEY")
 
-def montar_payload(evento: dict, nfkey: str, courier_id: int):
+def montar_payload_rastro(evento: dict, nfkey: str, courier_id: int):
     event = {
         "geo": evento.get("geo"),
         "city": evento.get("city"),
@@ -93,3 +93,4 @@ async def enviar_rastros_pendentes(db: Session):
             rastro.status = "erro"
             rastro.response = str(e)
             db.commit()
+

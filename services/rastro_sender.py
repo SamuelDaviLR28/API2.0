@@ -2,10 +2,12 @@ import httpx
 import os
 import json
 from dotenv import load_dotenv
+from sqlalchemy.orm import Session
 from database import SessionLocal
 from models.rastro import Rastro
 from models.historico_rastro import HistoricoRastro
 from models.patch import PatchUpdate
+from models.pedido import Pedido
 
 load_dotenv()
 TOUTBOX_API_URL = os.getenv("TOUTBOX_EVENT_API", "http://courier.toutbox.com.br/api/v1/Parcel/Event")
@@ -67,20 +69,20 @@ def enviar_rastros_pendentes(db: Session):
                 "Content-Type": "application/json"
             }
 
-            response = requests.post(
+            response = httpx.post(
                 TOUTBOX_API_URL,
                 headers=headers,
                 json=payload_formatado,
                 timeout=20
             )
 
-            rastro.status = "enviado" if response.status_code == 200 else "erro"
+            rastro.status = "enviado" if response.status_code == 200 else f"erro {response.status_code}"
             rastro.response = response.text
             db.commit()
 
             historico = HistoricoRastro(
                 nfkey=rastro.nfkey,
-                payload=json.dumps(payload_formatado),
+                payload=json.dumps(payload_formatado, ensure_ascii=False),
                 status=rastro.status,
                 response=response.text
             )
@@ -91,4 +93,3 @@ def enviar_rastros_pendentes(db: Session):
             rastro.status = "erro"
             rastro.response = str(e)
             db.commit()
-

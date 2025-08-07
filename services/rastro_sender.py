@@ -1,178 +1,101 @@
-import httpx
 import os
 import json
+import requests
 from dotenv import load_dotenv
-from database import SessionLocal
-from models.rastro import Rastro
-from models.historico_rastro import HistoricoRastro
-from models.patch import PatchUpdate
+from sqlalchemy.orm import Session
+from models.rastro import Rastro, HistoricoRastro
+from models.pedido import Pedido
 
 load_dotenv()
 
+TOUTBOX_URL = os.getenv("TOUTBOX_EVENT_URL", "http://courier.toutbox.com.br/api/v1/Parcel/Event")
 TOUTBOX_API_KEY = os.getenv("TOUTBOX_API_KEY")
-if not TOUTBOX_API_KEY:
-    raise Exception("Variável de ambiente TOUTBOX_API_KEY não definida!")
-TOUTBOX_API_KEY = TOUTBOX_API_KEY.strip()
 
 
-def validar_payload(payload: dict) -> tuple[bool, str]:
+def montar_payload_toutbox(rastro: Rastro, pedido: Pedido):
     try:
-        evento_data = payload.get("eventsData", [{}])[0]
+        # Extrair payload original (conforme salvo no banco)
+        dados_evento = json.loads(rastro.payload)
 
-        if not evento_data.get("CourierId"):
-            return False, "Campo 'CourierId' ausente."
-
-        eventos = evento_data.get("events", [])
+        eventos = dados_evento.get("events", [])
         if not eventos:
-            return False, "Lista 'events' vazia."
+            raise ValueError("Evento sem conteúdo válido.")
 
-        evento = eventos[0]
-        campos_obrigatorios = ["eventCode", "date", "city", "state", "address", "number"]
-        for campo in campos_obrigatorios:
-            if not evento.get(campo):
-                return False, f"Campo obrigatório '{campo}' ausente no evento."
-
-        return True, "válido"
-    except Exception as e:
-        return False, f"Erro ao validar payload: {str(e)}"
-
-
-async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
-    url = "http://courier.toutbox.com.br/api/v1/Parcel/Event"
-
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": TOUTBOX_API_KEY  # Header correto!
-    }
-
-    nfkey = payload.get("eventsData", [{}])[0].get("nfKey")
-
-    # Validação
-    valido, msg_validacao = validar_payload(payload)
-    if not valido:
-        db = SessionLocal()
-        try:
-            historico = HistoricoRastro(
-                nfkey=nfkey,
-                payload=json.dumps(payload),
-                status="erro - payload inválido",
-                response=msg_validacao[:255]
-            )
-            db.add(historico)
-
-            rastro = db.query(Rastro).filter(Rastro.nfkey == nfkey).first()
-            if rastro:
-                rastro.status = "erro - payload inválido"
-                rastro.response = msg_validacao[:255]
-                rastro.enviado = False
-
-            db.commit()
-        finally:
-            db.close()
-
-        return {
-            "nfkey": nfkey,
-            "status": "erro - payload inválido",
-            "response": msg_validacao
-        }
-
-    # Envio
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            response = await client.post(url, json=payload, headers=headers)
-    except Exception as e:
-        return {
-            "nfkey": nfkey,
-            "status": "erro - exceção na requisição",
-            "response": str(e)[:255]
-        }
-
-    status = "enviado" if response.status_code in [200, 204] else f"erro {response.status_code}"
-
-    # Persistência
-    db = SessionLocal()
-    try:
-        historico = HistoricoRastro(
-            nfkey=nfkey,
-            payload=json.dumps(payload),
-            status=status,
-            response=response.text[:255]
-        )
-        db.add(historico)
-
-        rastro = db.query(Rastro).filter(Rastro.nfkey == nfkey).first()
-        if rastro:
-            rastro.enviado = status == "enviado"
-            rastro.status = status
-            rastro.response = response.text[:255]
-
-        db.commit()
-    finally:
-        db.close()
-
-    return {
-        "nfkey": nfkey,
-        "status": status,
-        "response": response.text
-    }
-
-
-def montar_payload_rastro(evento) -> dict:
-    geo = None
-    if evento.geo_lat and evento.geo_long:
-        geo = {"lat": evento.geo_lat, "long": evento.geo_long}
-
-    files = []
-    if evento.file_url and evento.file_url.strip():
-        files.append({
-            "url": evento.file_url.strip(),
-            "description": evento.file_description or "",
-            "fileType": (evento.file_type or "OUTRO").upper()
-        })
-
-    evento_dict = {
-        "eventCode": evento.event_code,
-        "description": evento.description or "",
-        "date": evento.date.isoformat() if evento.date else None,
-        "address": evento.address or "",
-        "number": evento.number or "",
-        "city": evento.city or "",
-        "state": evento.state or "",
-        "receiverDocument": evento.receiver_document,
-        "receiver": evento.receiver,
-        "geo": geo,
-        "files": files
-    }
-
-    return {
-        "CourierId": evento.courier_id,
-        "events": [evento_dict],
-        "nfKey": evento.nfkey
-    }
-
-
-async def enviar_rastros_pendentes():
-    db = SessionLocal()
-    try:
-        eventos = db.query(Rastro).filter(Rastro.enviado.is_(False)).all()
-
+        evento_formatado = []
         for evento in eventos:
-            # Somente envia se houver PATCH com status "200"
-            patch = db.query(PatchUpdate).filter_by(nfkey=evento.nfkey, status="200").first()
-            if not patch:
-                print(f"⚠️ Patch não enviado ou com erro para nfkey {evento.nfkey}. Ignorando envio do rastro.")
+            evento_formatado.append({
+                "eventCode": evento.get("eventCode"),
+                "date": evento.get("date"),
+                "city": evento.get("city"),
+                "state": evento.get("state"),
+                "number": evento.get("number"),
+                "address": evento.get("address"),
+                "description": evento.get("description", ""),
+                "receiver": evento.get("receiver", None),
+                "files": evento.get("files", []),  # deve ser array, vazio se não houver imagens
+            })
+
+        payload = {
+            "eventsData": [
+                {
+                    "CourierId": rastro.courier_id or 0,
+                    "nfKey": rastro.nfkey,
+                    "orderId": None,
+                    "trackingNumber": "",
+                    "events": evento_formatado,
+                    "additionalInfo": {
+                        "additionalProp1": "",
+                        "additionalProp2": "",
+                        "additionalProp3": ""
+                    }
+                }
+            ]
+        }
+
+        return payload
+    except Exception as e:
+        raise ValueError(f"Erro ao montar payload: {str(e)}")
+
+
+def enviar_rastros_pendentes(db: Session):
+    rastros_pendentes = db.query(Rastro).filter(Rastro.status == "pendente").all()
+
+    for rastro in rastros_pendentes:
+        try:
+            pedido = db.query(Pedido).filter(Pedido.nfkey == rastro.nfkey).first()
+            if not pedido:
+                rastro.status = "erro"
+                rastro.response = "Pedido não encontrado."
+                db.commit()
                 continue
 
-            item = montar_payload_rastro(evento)
-            payload = {"eventsData": [item]}
-            resultado = await enviar_rastro_para_toutbox(payload, evento.courier_id)
+            payload = montar_payload_toutbox(rastro, pedido)
 
-            # Atualizar evento com resultado
-            evento.status = resultado["status"]
-            evento.response = resultado["response"][:255]
-            evento.payload = json.dumps(payload)
-            evento.enviado = resultado["status"] == "enviado"
+            headers = {
+                "Content-Type": "application/json",
+                "x-api-key": TOUTBOX_API_KEY
+            }
 
-        db.commit()
-    finally:
-        db.close()
+            response = requests.post(TOUTBOX_URL, json=payload, headers=headers)
+
+            rastro.response = response.text
+            if response.status_code == 200:
+                rastro.status = "enviado"
+            else:
+                rastro.status = f"erro {response.status_code}"
+
+            # Salva histórico
+            historico = HistoricoRastro(
+                nfkey=rastro.nfkey,
+                courier_id=rastro.courier_id,
+                payload=json.dumps(payload, ensure_ascii=False),
+                status=rastro.status,
+                response=response.text
+            )
+            db.add(historico)
+            db.commit()
+
+        except Exception as e:
+            rastro.status = "erro"
+            rastro.response = str(e)
+            db.commit()

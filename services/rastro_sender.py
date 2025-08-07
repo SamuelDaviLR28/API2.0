@@ -1,10 +1,12 @@
+import httpx
 import os
 import json
-import requests
 from dotenv import load_dotenv
-from sqlalchemy.orm import Session
-from models.rastro import Rastro, HistoricoRastro
-from models.pedido import Pedido
+from database import SessionLocal
+from models.rastro import Rastro
+from models.historico_rastro import HistoricoRastro
+from models.patch import PatchUpdate
+
 
 load_dotenv()
 
@@ -99,3 +101,4 @@ def enviar_rastros_pendentes(db: Session):
             rastro.status = "erro"
             rastro.response = str(e)
             db.commit()
+

@@ -20,20 +20,15 @@ def receber_rastro(data: dict, db: Session = Depends(get_db)):
             courier_id = evento_data.get("CourierId")
             eventos = evento_data.get("events", [])
 
-            # Valida campos obrigatórios
             if not nfkey or courier_id is None:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Campos obrigatórios faltando: 'nfKey' ou 'CourierId'"
-                )
+                raise HTTPException(status_code=400, detail="Campos obrigatórios faltando: 'nfKey' ou 'CourierId'")
 
             if not eventos:
                 raise HTTPException(status_code=400, detail="Nenhum evento informado")
 
-            evento = eventos[0]  # Considera o primeiro evento
+            evento = eventos[0]
             geo = evento.get("geo") or {}
 
-            # Monta o objeto Rastro com todos os campos disponíveis
             rastro = Rastro(
                 nfkey=nfkey,
                 courier_id=courier_id,
@@ -51,12 +46,10 @@ def receber_rastro(data: dict, db: Session = Depends(get_db)):
                 file_url=evento.get("files")[0].get("url") if evento.get("files") else None,
                 file_description=evento.get("files")[0].get("description") if evento.get("files") else None,
                 file_type=evento.get("files")[0].get("type") if evento.get("files") else None,
-                enviado=False,
                 status="pendente",
                 response="",
                 payload=json.dumps({"eventsData": [evento_data]}, ensure_ascii=False)
             )
-
             db.add(rastro)
 
         db.commit()

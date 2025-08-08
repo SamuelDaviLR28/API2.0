@@ -5,7 +5,6 @@ from models.rastro import Rastro
 from services.rastro_sender import enviar_rastros_pendentes
 from security import verificar_api_key
 import json
-from datetime import datetime
 
 router = APIRouter()
 
@@ -19,23 +18,55 @@ def receber_rastro(data: dict, db: Session = Depends(get_db)):
         for evento_data in events_data:
             nfkey = evento_data.get("nfKey")
             courier_id = evento_data.get("CourierId")
+            eventos = evento_data.get("events", [])
 
-            if not nfkey or not courier_id:
-                raise HTTPException(status_code=400, detail="Campos obrigatórios faltando: 'nfKey' ou 'CourierId'")
+            # Valida campos obrigatórios
+            if not nfkey or courier_id is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Campos obrigatórios faltando: 'nfKey' ou 'CourierId'"
+                )
 
+            if not eventos:
+                raise HTTPException(status_code=400, detail="Nenhum evento informado")
+
+            evento = eventos[0]  # Considera o primeiro evento
+            geo = evento.get("geo") or {}
+
+            # Monta o objeto Rastro com todos os campos disponíveis
             rastro = Rastro(
                 nfkey=nfkey,
-                payload=json.dumps({"eventsData": [evento_data]}),
+                courier_id=courier_id,
+                event_code=evento.get("eventCode"),
+                description=evento.get("description"),
+                date=evento.get("date"),
+                address=evento.get("address"),
+                number=evento.get("number"),
+                city=evento.get("city"),
+                state=evento.get("state"),
+                receiver_document=evento.get("receiverDocument"),
+                receiver=evento.get("receiver"),
+                geo_lat=geo.get("lat"),
+                geo_long=geo.get("lng"),
+                file_url=evento.get("files")[0].get("url") if evento.get("files") else None,
+                file_description=evento.get("files")[0].get("description") if evento.get("files") else None,
+                file_type=evento.get("files")[0].get("type") if evento.get("files") else None,
+                enviado=False,
                 status="pendente",
-                response=""
+                response="",
+                payload=json.dumps({"eventsData": [evento_data]}, ensure_ascii=False)
             )
-            db.add(rastro)
-        db.commit()
 
+            db.add(rastro)
+
+        db.commit()
         return {"message": "Eventos recebidos com sucesso"}
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/enviar-pendentes", dependencies=[Depends(verificar_api_key)])
 def enviar_rastros(db: Session = Depends(get_db)):

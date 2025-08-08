@@ -47,7 +47,7 @@ def montar_payload_rastro(evento: dict, nfkey: str, courier_id: int):
 async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
     """Envia o payload formatado para a API do TOUTBOX"""
     headers = {
-        "x-api-key": TOUTBOX_API_KEY,
+        "Authorization": TOUTBOX_API_KEY,
         "Content-Type": "application/json"
     }
 
@@ -128,3 +128,4 @@ async def enviar_rastros_pendentes(db: Session):
             rastro.status = "erro"
             rastro.response = erro_msg
             db.commit()
+

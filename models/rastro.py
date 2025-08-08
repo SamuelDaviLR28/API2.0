@@ -23,7 +23,7 @@ class Rastro(Base):
     file_type = Column(String(20), nullable=True)
 
     enviado = Column(Boolean, default=False, nullable=False)
-    status = Column(String(20), nullable=True)
+    status = Column(String(50), nullable=True)
     response = Column(Text, nullable=True)
     payload = Column(Text, nullable=True)
 

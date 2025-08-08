@@ -21,9 +21,14 @@ class Rastro(Base):
     file_url = Column(Text, nullable=True)
     file_description = Column(Text, nullable=True)
     file_type = Column(String(20), nullable=True)
+
     enviado = Column(Boolean, default=False, nullable=False)
     status = Column(String(20), nullable=True)
     response = Column(Text, nullable=True)
     payload = Column(Text, nullable=True)
+
+    tentativas_envio = Column(Integer, default=0, nullable=False)
+    em_processo = Column(Boolean, default=False, nullable=False)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

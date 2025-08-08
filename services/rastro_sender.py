@@ -48,7 +48,7 @@ def montar_payload_rastro(evento: dict, nfkey: str, courier_id: int):
 
 async def enviar_rastro_para_toutbox(payload: dict):
     headers = {
-        "Authorization": TOUTBOX_API_KEY,
+        "Authorization": TOUTBOX_API_KEY,  # Chave simples, sem "Bearer"
         "Content-Type": "application/json"
     }
     async with httpx.AsyncClient(timeout=20) as client:

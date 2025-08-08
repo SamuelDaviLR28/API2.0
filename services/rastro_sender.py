@@ -80,7 +80,7 @@ async def enviar_rastros_pendentes(db: Session):
                 raise ValueError("Payload sem eventsData")
 
             courier_id = events_data[0].get("CourierId")
-            if not courier_id:
+            if courier_id is None:
                 raise ValueError("CourierId ausente no payload")
 
             eventos = events_data[0].get("events", [])
@@ -88,8 +88,9 @@ async def enviar_rastros_pendentes(db: Session):
                 raise ValueError("Nenhum evento no payload")
 
             for evento in eventos:
-                if not evento.get("eventCode"):
-                    raise ValueError("Campo obrigatório 'eventCode' ausente no evento.")
+                event_code = evento.get("eventCode")
+                if not event_code or not str(event_code).strip():
+                    raise ValueError("Campo obrigatório 'eventCode' ausente ou vazio no evento.")
 
                 payload_formatado = montar_payload_rastro(evento, rastro.nfkey, courier_id)
                 resultado = await enviar_rastro_para_toutbox(payload_formatado)

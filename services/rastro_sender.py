@@ -5,7 +5,6 @@ import httpx
 import os
 from models.rastro import Rastro
 from models.historico_rastro import HistoricoRastro
-from database import SessionLocal
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 
@@ -14,7 +13,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 TOUTBOX_API_URL = "http://courier.toutbox.com.br/api/v1/Parcel/Event"
-TOUTBOX_API_KEY = os.getenv("TOUTBOX_API_KEY")  # pega do .env
+TOUTBOX_API_KEY = os.getenv("TOUTBOX_API_KEY")
 
 MAX_TENTATIVAS = 5
 
@@ -45,7 +44,7 @@ def montar_payload_rastro(evento: dict, nfkey: str, courier_id: int):
 
 async def enviar_rastro_para_toutbox(payload: dict):
     headers = {
-        "Authorization": TOUTBOX_API_KEY,  # chave direta, sem Bearer
+        "Authorization": TOUTBOX_API_KEY,
         "Content-Type": "application/json"
     }
     async with httpx.AsyncClient(timeout=20) as client:
@@ -88,7 +87,6 @@ async def enviar_rastros_pendentes(db: Session):
             if not eventos:
                 raise ValueError("Nenhum evento no payload")
 
-            # Processa todos eventos do rastro (normalmente 1)
             for evento in eventos:
                 if not evento.get("eventCode"):
                     raise ValueError("Campo obrigatório 'eventCode' ausente no evento.")
@@ -119,7 +117,7 @@ async def enviar_rastros_pendentes(db: Session):
             rastro.em_processo = False
             db.commit()
 
-            await asyncio.sleep(0.5)  # pequeno delay para evitar flood
+            await asyncio.sleep(0.5)
 
         except Exception as e:
             logger.exception(f"Erro ao enviar rastro NFKey {rastro.nfkey}: {e}")

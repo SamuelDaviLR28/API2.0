@@ -64,7 +64,7 @@ def receber_rastro(data: dict, db: Session = Depends(get_db)):
         logger.exception(f"Erro ao receber rastro: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Controle simples para evitar múltiplos envios concorrentes
+
 enviando_rastros = False
 
 def enviar_rastros_background():

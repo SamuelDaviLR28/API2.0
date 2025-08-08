@@ -5,12 +5,15 @@ from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 from models.rastro import Rastro
 from models.historico_rastro import HistoricoRastro
-from models.patch import PatchUpdate
 from models.pedido import Pedido
 
 load_dotenv()
-TOUTBOX_API_URL = os.getenv("TOUTBOX_EVENT_API", "http://courier.toutbox.com.br/api/v1/Parcel/Event")
+TOUTBOX_API_URL = os.getenv(
+    "TOUTBOX_EVENT_API",
+    "http://courier.toutbox.com.br/api/v1/Parcel/Event"
+)
 TOUTBOX_API_KEY = os.getenv("TOUTBOX_API_KEY")
+
 
 def montar_payload_rastro(evento: dict, nfkey: str, courier_id: int):
     event = {
@@ -26,7 +29,6 @@ def montar_payload_rastro(evento: dict, nfkey: str, courier_id: int):
         "description": evento.get("description"),
         "receiverDocument": evento.get("receiverDocument")
     }
-
     return {
         "eventsData": [
             {
@@ -37,7 +39,8 @@ def montar_payload_rastro(evento: dict, nfkey: str, courier_id: int):
         ]
     }
 
-async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
+
+async def enviar_rastro_para_toutbox(payload: dict):
     headers = {
         "x-api-key": TOUTBOX_API_KEY,
         "Content-Type": "application/json"
@@ -48,9 +51,10 @@ async def enviar_rastro_para_toutbox(payload: dict, courier_id: int):
     status = "enviado" if response.status_code in (200, 204) else f"erro {response.status_code}"
     return {"status": status, "response": response.text}
 
+
 async def enviar_rastros_pendentes(db: Session):
     pendentes = db.query(Rastro).filter(Rastro.status == "pendente").all()
-    
+
     for rastro in pendentes:
         try:
             pedido = db.query(Pedido).filter(Pedido.nfkey == rastro.nfkey).first()
@@ -72,9 +76,9 @@ async def enviar_rastros_pendentes(db: Session):
             courier_id = events_data[0].get("CourierId")
             evento = events_data[0]["events"][0]
 
-            payload_formatado = montar_payload(evento, rastro.nfkey, courier_id)
+            payload_formatado = montar_payload_rastro(evento, rastro.nfkey, courier_id)
 
-            resultado = await enviar_rastro_para_toutbox(payload_formatado, courier_id)
+            resultado = await enviar_rastro_para_toutbox(payload_formatado)
 
             rastro.status = resultado["status"]
             rastro.response = resultado["response"]
@@ -93,4 +97,3 @@ async def enviar_rastros_pendentes(db: Session):
             rastro.status = "erro"
             rastro.response = str(e)
             db.commit()
-

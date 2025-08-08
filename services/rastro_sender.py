@@ -15,6 +15,7 @@ from security import verificar_api_key
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+# Carrega variáveis ambiente
 load_dotenv()
 TOUTBOX_API_URL = os.getenv("TOUTBOX_EVENT_API", "http://courier.toutbox.com.br/api/v1/Parcel/Event")
 TOUTBOX_API_KEY = os.getenv("TOUTBOX_API_KEY")
@@ -48,7 +49,7 @@ def montar_payload_rastro(evento: dict, nfkey: str, courier_id: int):
 
 async def enviar_rastro_para_toutbox(payload: dict):
     headers = {
-        "Authorization": TOUTBOX_API_KEY,  # Chave simples, sem "Bearer"
+        "Authorization": TOUTBOX_API_KEY,  # Somente a chave, sem 'Bearer '
         "Content-Type": "application/json"
     }
     async with httpx.AsyncClient(timeout=20) as client:
@@ -87,7 +88,7 @@ async def enviar_rastros_pendentes(db: Session):
                 continue
 
             courier_id = events_data[0].get("CourierId")
-            if not courier_id:
+            if courier_id is None:
                 msg = "CourierId ausente no payload"
                 logger.error(f"{rastro.nfkey} - {msg}")
                 rastro.status = "erro"

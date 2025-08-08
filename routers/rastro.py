@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
-from database import get_db
+from database import get_db, SessionLocal
 from models.rastro import Rastro
 from services.rastro_sender import enviar_rastros_pendentes
 from security import verificar_api_key
 import json
+import asyncio
 
 router = APIRouter()
 
@@ -61,7 +62,16 @@ def receber_rastro(data: dict, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Função wrapper para criar session e rodar envio em background
+def enviar_rastros_background():
+    db = SessionLocal()  # cria sessão nova
+    try:
+        import asyncio
+        asyncio.run(enviar_rastros_pendentes(db))
+    finally:
+        db.close()
+
 @router.post("/enviar-pendentes", dependencies=[Depends(verificar_api_key)])
-def enviar_rastros(db: Session = Depends(get_db)):
-    enviar_rastros_pendentes(db)
-    return {"message": "Envio de rastros pendentes iniciado"}
+def enviar_rastros(background_tasks: BackgroundTasks):
+    background_tasks.add_task(enviar_rastros_background)
+    return {"message": "Envio de rastros pendentes iniciado em background"}

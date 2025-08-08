@@ -17,26 +17,15 @@ TOUTBOX_API_KEY = os.getenv("TOUTBOX_API_KEY")
 
 MAX_TENTATIVAS = 5
 
-def montar_payload_rastro(evento: dict, nfkey: str, courier_id: int):
+def montar_payload_rastro(eventos_validos: list, nfkey: str, courier_id: int):
+    """
+    Monta o payload incluindo apenas eventos válidos.
+    """
     return {
         "eventsData": [
             {
                 "nfKey": nfkey,
-                "events": [
-                    {
-                        "geo": evento.get("geo"),
-                        "city": evento.get("city"),
-                        "date": evento.get("date"),
-                        "files": evento.get("files", []),
-                        "state": evento.get("state"),
-                        "number": evento.get("number"),
-                        "address": evento.get("address"),
-                        "receiver": evento.get("receiver"),
-                        "eventCode": evento.get("eventCode"),
-                        "description": evento.get("description"),
-                        "receiverDocument": evento.get("receiverDocument")
-                    }
-                ],
+                "events": eventos_validos,
                 "CourierId": courier_id
             }
         ]
@@ -44,7 +33,7 @@ def montar_payload_rastro(evento: dict, nfkey: str, courier_id: int):
 
 async def enviar_rastro_para_toutbox(payload: dict):
     headers = {
-        "Authorization": TOUTBOX_API_KEY,
+        "Authorization": TOUTBOX_API_KEY,  # Atenção ao header correto
         "Content-Type": "application/json; charset=utf-8"
     }
     async with httpx.AsyncClient(timeout=20) as client:
@@ -87,32 +76,46 @@ async def enviar_rastros_pendentes(db: Session):
             if not eventos:
                 raise ValueError("Nenhum evento no payload")
 
+            # Filtrar apenas eventos que tenham eventCode válido
+            eventos_validos = []
             for evento in eventos:
-                if not evento.get("eventCode"):
-                    raise ValueError("Campo obrigatório 'eventCode' ausente no evento.")
-
-                payload_formatado = montar_payload_rastro(evento, rastro.nfkey, courier_id)
-                resultado = await enviar_rastro_para_toutbox(payload_formatado)
-
-                rastro.status = resultado["status"]
-                rastro.response = resultado["response"]
-
-                if resultado["status"] == "enviado":
-                    rastro.enviado = True
-                    logger.info(f"Rastro NFKey {rastro.nfkey} enviado com sucesso.")
+                if evento.get("eventCode") and isinstance(evento.get("eventCode"), (str, int)):
+                    eventos_validos.append(evento)
                 else:
-                    logger.warning(f"Falha ao enviar rastro NFKey {rastro.nfkey}: {resultado['response']}")
+                    logger.warning(f"Evento descartado por faltar eventCode válido: {evento}")
 
+            if not eventos_validos:
+                # Se não houver evento válido, marca como erro e continua
+                rastro.status = "erro"
+                rastro.response = "Nenhum evento com eventCode válido para envio."
+                rastro.em_processo = False
                 db.commit()
+                logger.error(f"Rastro NFKey {rastro.nfkey} não possui eventos válidos para envio.")
+                continue
 
-                historico = HistoricoRastro(
-                    nfkey=rastro.nfkey,
-                    payload=json.dumps(payload_formatado, ensure_ascii=False),
-                    status=rastro.status,
-                    response=resultado["response"]
-                )
-                db.add(historico)
-                db.commit()
+            # Monta o payload só com eventos válidos
+            payload_formatado = montar_payload_rastro(eventos_validos, rastro.nfkey, courier_id)
+            resultado = await enviar_rastro_para_toutbox(payload_formatado)
+
+            rastro.status = resultado["status"]
+            rastro.response = resultado["response"]
+
+            if resultado["status"] == "enviado":
+                rastro.enviado = True
+                logger.info(f"Rastro NFKey {rastro.nfkey} enviado com sucesso.")
+            else:
+                logger.warning(f"Falha ao enviar rastro NFKey {rastro.nfkey}: {resultado['response']}")
+
+            db.commit()
+
+            historico = HistoricoRastro(
+                nfkey=rastro.nfkey,
+                payload=json.dumps(payload_formatado, ensure_ascii=False),
+                status=rastro.status,
+                response=resultado["response"]
+            )
+            db.add(historico)
+            db.commit()
 
             rastro.em_processo = False
             db.commit()

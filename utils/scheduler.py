@@ -4,9 +4,10 @@ from apscheduler.executors.pool import ThreadPoolExecutor
 from services.patch_sender import enviar_patches_pendentes
 from services.rastro_sender import enviar_rastros_pendentes
 from services.esl_dispatch_sender import enviar_dispatch_para_esl
+from database import SessionLocal
 from dotenv import load_dotenv
-load_dotenv()
 
+load_dotenv()
 
 # Wrappers protegidos por try/except
 def enviar_dispatch_sync():
@@ -22,10 +23,13 @@ def enviar_patches_sync():
         print("❌ Erro no envio de patches:", e)
 
 def enviar_rastros_sync():
+    db = SessionLocal()
     try:
-        asyncio.run(enviar_rastros_pendentes())
+        asyncio.run(enviar_rastros_pendentes(db))
     except Exception as e:
         print("❌ Erro no envio de rastros:", e)
+    finally:
+        db.close()
 
 def start():
     scheduler = BackgroundScheduler(

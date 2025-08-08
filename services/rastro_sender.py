@@ -45,7 +45,7 @@ def montar_payload_rastro(evento: dict, nfkey: str, courier_id: int):
 async def enviar_rastro_para_toutbox(payload: dict):
     headers = {
         "Authorization": TOUTBOX_API_KEY,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json; charset=utf-8"
     }
     async with httpx.AsyncClient(timeout=20) as client:
         response = await client.post(TOUTBOX_API_URL, json=payload, headers=headers)
@@ -80,7 +80,7 @@ async def enviar_rastros_pendentes(db: Session):
                 raise ValueError("Payload sem eventsData")
 
             courier_id = events_data[0].get("CourierId")
-            if courier_id is None:
+            if not courier_id:
                 raise ValueError("CourierId ausente no payload")
 
             eventos = events_data[0].get("events", [])
@@ -88,9 +88,8 @@ async def enviar_rastros_pendentes(db: Session):
                 raise ValueError("Nenhum evento no payload")
 
             for evento in eventos:
-                event_code = evento.get("eventCode")
-                if not event_code or not str(event_code).strip():
-                    raise ValueError("Campo obrigatório 'eventCode' ausente ou vazio no evento.")
+                if not evento.get("eventCode"):
+                    raise ValueError("Campo obrigatório 'eventCode' ausente no evento.")
 
                 payload_formatado = montar_payload_rastro(evento, rastro.nfkey, courier_id)
                 resultado = await enviar_rastro_para_toutbox(payload_formatado)

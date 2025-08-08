@@ -6,8 +6,10 @@ from services.rastro_sender import enviar_rastros_pendentes
 from security import verificar_api_key
 import json
 import asyncio
+import logging
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 @router.post("/rastro", dependencies=[Depends(verificar_api_key)])
 def receber_rastro(data: dict, db: Session = Depends(get_db)):
@@ -59,16 +61,24 @@ def receber_rastro(data: dict, db: Session = Depends(get_db)):
     except HTTPException:
         raise
     except Exception as e:
+        logger.exception(f"Erro ao receber rastro: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Controle simples para evitar múltiplos envios concorrentes
+enviando_rastros = False
 
-# Função wrapper para criar session e rodar envio em background
 def enviar_rastros_background():
-    db = SessionLocal()  # cria sessão nova
+    global enviando_rastros
+    if enviando_rastros:
+        logger.warning("Envio de rastros já está em execução, abortando nova chamada.")
+        return
+
+    enviando_rastros = True
+    db = SessionLocal()
     try:
-        import asyncio
         asyncio.run(enviar_rastros_pendentes(db))
     finally:
+        enviando_rastros = False
         db.close()
 
 @router.post("/enviar-pendentes", dependencies=[Depends(verificar_api_key)])

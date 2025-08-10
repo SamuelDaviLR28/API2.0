@@ -85,7 +85,6 @@ async def enviar_rastros_pendentes(db: Session):
 
             eventos = events_data[0].get("events", [])
 
-            # Verificar se há eventos sem eventCode
             eventos_sem_eventCode = [e for e in eventos if not e.get("eventCode")]
             if eventos_sem_eventCode:
                 msg = f"Eventos sem 'eventCode' encontrados: {eventos_sem_eventCode}"
@@ -94,7 +93,7 @@ async def enviar_rastros_pendentes(db: Session):
                 rastro.response = msg
                 rastro.em_processo = False
                 db.commit()
-                continue  # Pula para o próximo rastro
+                continue
 
             for evento in eventos:
                 payload_formatado = montar_payload_rastro(evento, rastro.nfkey, courier_id)

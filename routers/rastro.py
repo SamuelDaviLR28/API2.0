@@ -5,7 +5,6 @@ from models.rastro import Rastro
 from services.rastro_sender import enviar_rastros_pendentes
 from security import verificar_api_key
 import json
-import asyncio
 import logging
 
 router = APIRouter()
@@ -51,7 +50,10 @@ def receber_rastro(data: dict, db: Session = Depends(get_db)):
                 file_type=evento.get("files")[0].get("type") if evento.get("files") else None,
                 status="pendente",
                 response="",
-                payload=json.dumps({"eventsData": [evento_data]}, ensure_ascii=False)
+                payload=json.dumps({"eventsData": [evento_data]}, ensure_ascii=False),
+                tentativas_envio=0,
+                em_processo=False,
+                enviado=False,
             )
             db.add(rastro)
 
@@ -65,23 +67,7 @@ def receber_rastro(data: dict, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-enviando_rastros = False
-
-def enviar_rastros_background():
-    global enviando_rastros
-    if enviando_rastros:
-        logger.warning("Envio de rastros já está em execução, abortando nova chamada.")
-        return
-
-    enviando_rastros = True
-    db = SessionLocal()
-    try:
-        asyncio.run(enviar_rastros_pendentes(db))
-    finally:
-        enviando_rastros = False
-        db.close()
-
 @router.post("/enviar-pendentes", dependencies=[Depends(verificar_api_key)])
-def enviar_rastros(background_tasks: BackgroundTasks):
-    background_tasks.add_task(enviar_rastros_background)
+async def enviar_rastros(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    background_tasks.add_task(enviar_rastros_pendentes, db)
     return {"message": "Envio de rastros pendentes iniciado em background"}

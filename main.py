@@ -4,12 +4,12 @@ from dotenv import load_dotenv
 import os
 import traceback
 
-# Carrega variáveis do .env e ambiente
 load_dotenv()
+
 print("🔐 TOUTBOX_API_KEY carregada:", os.getenv("TOUTBOX_API_KEY"))
 print("🔐 API_KEY carregada:", os.getenv("API_KEY"))
 
-from routers import dispatch, patch, rastro, cancelamento, sla, integracao, pedido  # adicionado pedido
+from routers import dispatch, patch, rastro, cancelamento, sla, integracao  # sem pedido
 
 app = FastAPI(
     title="API Integração Transportadora - Toutbox",
@@ -32,7 +32,7 @@ async def autenticar_api_key(request: Request, call_next):
         if request.url.path in rotas_livres:
             return await call_next(request)
 
-        rotas_sensiveis = ("/dispatch", "/patch", "/rastro", "/cancelamento", "/integracao", "/pedido")  # adicionado /pedido
+        rotas_sensiveis = ("/dispatch", "/patch", "/rastro", "/cancelamento", "/integracao")
         if any(request.url.path.startswith(r) for r in rotas_sensiveis):
             chave_enviada = request.headers.get("x-api-key")
             chave_configurada = os.getenv("API_KEY")
@@ -43,7 +43,6 @@ async def autenticar_api_key(request: Request, call_next):
             if not chave_configurada:
                 raise HTTPException(status_code=500, detail="API_KEY não configurada no ambiente.")
 
-            # Usa strip() para evitar erros por espaços extras
             if (chave_enviada or "").strip() != chave_configurada.strip():
                 raise HTTPException(status_code=403, detail="API Key inválida.")
 
@@ -70,4 +69,3 @@ app.include_router(rastro.router, prefix="/rastro", tags=["rastro"])
 app.include_router(cancelamento.router, prefix="/cancelamento", tags=["cancelamento"])
 app.include_router(sla.router, prefix="/sla", tags=["SLA"])
 app.include_router(integracao.router, prefix="/integracao", tags=["integração"])
-app.include_router(pedido.router, prefix="/pedido", tags=["pedido"])  # adicionado aqui

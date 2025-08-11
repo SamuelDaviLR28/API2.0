@@ -40,7 +40,6 @@ def receber_rastro(data: dict, db: Session = Depends(get_db)):
             if not event_date:
                 raise HTTPException(status_code=400, detail="Campo obrigatório 'date' ausente")
 
-            # Valida formato ISO da data, aceitando 'Z' no fim
             try:
                 datetime.fromisoformat(event_date.replace("Z", "+00:00"))
             except Exception:

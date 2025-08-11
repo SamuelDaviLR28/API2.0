@@ -55,7 +55,7 @@ async def enviar_rastros_pendentes(db: Session):
                 db.commit()
                 db.refresh(rastro)
 
-                payload_dict = json.loads(rastro.payload)
+                payload_dict = rastro.payload  # Corrigido: já é dict, não usar json.loads
 
                 events = []
                 courier_id = None

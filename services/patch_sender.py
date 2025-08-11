@@ -1,72 +1,58 @@
+import json
+import logging
+import traceback
 import httpx
 import os
-import json
-import traceback
-from database import SessionLocal
-from models.historico_patch import HistoricoPatch
+from sqlalchemy.orm import Session
 from models.patch import PatchUpdate
 from models.pedido import Pedido
+from models.historico_patch import HistoricoPatch
 from services.sla_service import buscar_sla
 from dotenv import load_dotenv
 
 load_dotenv()
 
-TOUTBOX_API_KEY = os.getenv("TOUTBOX_API_KEY", "").strip()
+logger = logging.getLogger(__name__)
 
-async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list):
-    url = f"https://production.toutbox.com.br/api/v1/External/Order?nfkey={nfkey}&courier_id={courier_id}"
+TOUTBOX_API_KEY = os.getenv("TOUTBOX_API_KEY")
+TOUTBOX_API_URL_PATCH = "https://production.toutbox.com.br/api/v1/External/Order"
 
+async def enviar_patch_para_toutbox(nfkey: str, courier_id: int, payload: list, db: Session):
+    url = f"{TOUTBOX_API_URL_PATCH}?nfkey={nfkey}&courier_id={courier_id}"
     headers = {
         "Content-Type": "application/json-patch+json",
         "Authorization": TOUTBOX_API_KEY
     }
-
-    print(f"📦 PATCH → nfkey: {nfkey}, courier_id: {courier_id}")
-    print(f"📤 Payload:\n{json.dumps(payload, indent=2, ensure_ascii=False)}")
-
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.patch(url, json=payload, headers=headers)
     except Exception as e:
-        print(f"❌ Exceção na requisição PATCH: {e}")
-        traceback.print_exc()
-        return {
-            "nfkey": nfkey,
-            "status": "erro - exceção na requisição",
-            "response": str(e)
-        }
+        logger.error(f"Erro PATCH nfkey {nfkey}: {e}")
+        return {"status": "erro", "response": str(e)}
 
-    status = "enviado" if response.status_code in [200, 204] else f"erro {response.status_code}"
+    status_code = response.status_code
+    status = "enviado" if status_code in [200, 204] else f"erro {status_code}"
 
-    db = SessionLocal()
     try:
-        # Grava o histórico do envio, incluindo a data/hora atual
         historico = HistoricoPatch(
             nfkey=nfkey,
             payload=json.dumps(payload, ensure_ascii=False),
             status=status,
             response=response.text[:255]
-            # enviado_em será populado automaticamente com default do BD (CURRENT_TIMESTAMP)
         )
         db.add(historico)
 
-        # Atualiza status e resposta no patch
         patch = db.query(PatchUpdate).filter_by(nfkey=nfkey, courier_id=courier_id).first()
         if patch:
-            # Use status HTTP como inteiro para facilitar consultas e controle
-            patch.status = response.status_code
+            patch.status = status_code
             patch.response = response.text
             db.add(patch)
-
         db.commit()
-    finally:
-        db.close()
+    except Exception as e:
+        logger.error(f"Erro ao salvar histórico PATCH nfkey {nfkey}: {e}")
+        db.rollback()
 
-    return {
-        "nfkey": nfkey,
-        "status": status,
-        "response": response.text
-    }
+    return {"status": status, "response": response.text}
 
 def montar_payload_patch_com_sla(prazo_dias_uteis: int) -> list:
     return [
@@ -77,17 +63,18 @@ def montar_payload_patch_com_sla(prazo_dias_uteis: int) -> list:
         }
     ]
 
-async def enviar_patches_pendentes():
-    db = SessionLocal()
-    patches = db.query(PatchUpdate).filter(PatchUpdate.status.is_(None)).all()
-    print(f"🕒 Enviando {len(patches)} patches pendentes...")
+async def enviar_patches_pendentes(db: Session):
+    patches = db.query(PatchUpdate).filter(
+        PatchUpdate.status.is_(None)
+    ).all()
+
+    logger.info(f"Enviando {len(patches)} patches pendentes...")
 
     for patch in patches:
         try:
             pedido = db.query(Pedido).filter_by(nfkey=patch.nfkey).first()
             if not pedido:
-                print(f"⚠️ Pedido não encontrado para nfkey {patch.nfkey}")
-                # Atualiza o patch para evitar tentar sempre (defina um status customizado, ex: -1)
+                logger.warning(f"Pedido não encontrado para nfkey {patch.nfkey}")
                 patch.status = -1
                 patch.response = "Pedido não encontrado"
                 db.add(patch)
@@ -96,7 +83,7 @@ async def enviar_patches_pendentes():
 
             sla_dias = buscar_sla(db, uf_origem=pedido.uf_remetente, uf_destino=pedido.uf_destinatario)
             if sla_dias is None:
-                print(f"⚠️ SLA não encontrado para rota {pedido.uf_remetente} -> {pedido.uf_destinatario}")
+                logger.warning(f"SLA não encontrado para rota {pedido.uf_remetente} -> {pedido.uf_destinatario}")
                 patch.status = -2
                 patch.response = "SLA não encontrado"
                 db.add(patch)
@@ -104,20 +91,13 @@ async def enviar_patches_pendentes():
                 continue
 
             payload = montar_payload_patch_com_sla(sla_dias)
-
             patch.payload = json.dumps(payload, ensure_ascii=False)
             db.add(patch)
             db.commit()
 
-            resultado = await enviar_patch_para_toutbox(
-                nfkey=patch.nfkey,
-                courier_id=patch.courier_id,
-                payload=payload
-            )
-            print(f"✅ PATCH enviado para nfkey {patch.nfkey}: {resultado['status']}")
+            resultado = await enviar_patch_para_toutbox(patch.nfkey, patch.courier_id, payload, db)
+            logger.info(f"PATCH nfkey {patch.nfkey} resultado: {resultado['status']}")
 
-        except Exception as e:
-            print(f"❌ Erro ao enviar PATCH para nfkey {patch.nfkey}")
-            traceback.print_exc()
-
-    db.close()
+        except Exception:
+            logger.exception(f"Erro no envio PATCH nfkey {patch.nfkey}")
+            db.rollback()

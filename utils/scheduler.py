@@ -2,7 +2,7 @@ import asyncio
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.executors.pool import ThreadPoolExecutor
 from services.patch_sender import enviar_patches_pendentes
-from services.rastro_sender import enviar_rastros_pendentes_em_lotes
+from services.rastro_sender import enviar_rastros_pendentes
 from services.esl_dispatch_sender import enviar_dispatch_para_esl
 from database import SessionLocal
 from dotenv import load_dotenv
@@ -24,7 +24,7 @@ def enviar_patches_sync():
 def enviar_rastros_sync():
     db = SessionLocal()
     try:
-        asyncio.run(enviar_rastros_pendentes_em_lotes(db))
+        asyncio.run(enviar_rastros_pendentes(db))
     except Exception as e:
         print("❌ Erro no envio de rastros:", e)
     finally:
@@ -33,13 +33,8 @@ def enviar_rastros_sync():
 def start():
     scheduler = BackgroundScheduler(
         timezone="America/Sao_Paulo",
-        executors={
-            "default": ThreadPoolExecutor(max_workers=5)
-        },
-        job_defaults={
-            "coalesce": False,
-            "max_instances": 2
-        }
+        executors={"default": ThreadPoolExecutor(max_workers=5)},
+        job_defaults={"coalesce": False, "max_instances": 2},
     )
 
     scheduler.add_job(enviar_dispatch_sync, 'interval', minutes=5, id="dispatch_job")

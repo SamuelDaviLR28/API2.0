@@ -1,14 +1,15 @@
-# routers/integracao.py
-from fastapi import APIRouter, HTTPException
-from services.integracao import processar_nfkey, processar_todos_patches_e_rastros
-import asyncio
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from database import get_db
+from services.patch_sender import enviar_patches_pendentes
+from services.rastro_sender import enviar_rastros_pendentes
 
 router = APIRouter()
 
-@router.post("/processar-todos")
-async def processar_todos():
-    try:
-        await processar_todos_patches_e_rastros()
-        return {"message": "Processamento iniciado para todos patches pendentes."}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+@router.post("/integracao/enviar-pendentes")
+async def enviar_pendentes_completos(db: Session = Depends(get_db)):
+    # Enviar patches primeiro
+    await enviar_patches_pendentes(db)
+    # Depois enviar rastros apenas com patch enviado com sucesso
+    await enviar_rastros_pendentes(db)
+    return {"message": "Envio de patches e rastros pendentes concluído"}

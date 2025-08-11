@@ -17,6 +17,33 @@ MAX_TENTATIVAS = 5
 BATCH_SIZE = 100
 PAUSE_SECONDS = 1.0
 
+def limpar_string(s):
+    if s is None:
+        return None
+    return s.encode('utf-8', 'ignore').decode('utf-8', 'ignore')
+
+def ajustar_eventos(events):
+    for e in events:
+        # Remove driver completamente
+        e.pop("driver", None)
+
+        # Limpa strings para evitar caracteres inválidos
+        for campo in ["city", "address", "description", "number", "state"]:
+            if campo in e and e[campo]:
+                e[campo] = limpar_string(e[campo])
+
+        # Ajusta files para [] se não houver URL válida
+        if "files" in e:
+            if not any(f.get("url") for f in e["files"]):
+                e["files"] = []
+
+        # Ajusta orderId para None se vazio ou inválido
+        if "orderId" in e:
+            if not e["orderId"]:
+                e["orderId"] = None
+
+    return events
+
 def _normalize_payload_field(payload_field):
     if payload_field is None:
         return {}
@@ -47,12 +74,6 @@ def _extract_events_and_courier(payload_dict):
             courier_id = block.get("courierId") or block.get("CourierId")
             events = block.get("events", [])
     return events or [], courier_id
-
-def _remove_driver_field(events):
-    for evento in events:
-        if "driver" in evento:
-            del evento["driver"]
-    return events
 
 def _montar_payload_toutbox(nfkey, courier_id, events):
     return {
@@ -114,11 +135,7 @@ async def enviar_rastros_pendentes(db: Session):
                 payload_dict = _normalize_payload_field(rastro.payload)
                 events, courier_id = _extract_events_and_courier(payload_dict)
 
-                # Remove o campo 'driver' de cada evento
-                eventos_sem_driver = _remove_driver_field(events)
-
-                eventos_validos = [e for e in eventos_sem_driver if e.get("eventCode") and str(e.get("eventCode")).strip()]
-
+                eventos_validos = [e for e in events if e.get("eventCode") and str(e.get("eventCode")).strip()]
                 if not eventos_validos:
                     rastro.status = "erro - sem eventCode"
                     rastro.response = f"Sem eventos com eventCode válido (tentativa {rastro.tentativas_envio})"
@@ -144,8 +161,10 @@ async def enviar_rastros_pendentes(db: Session):
                         db.rollback()
                     continue
 
-                payload_corrigido = _montar_payload_toutbox(rastro.nfkey, courier_id, eventos_validos)
+                # Ajusta os eventos antes de montar o payload final
+                eventos_validos = ajustar_eventos(eventos_validos)
 
+                payload_corrigido = _montar_payload_toutbox(rastro.nfkey, courier_id, eventos_validos)
                 resultado = await enviar_rastro_para_toutbox(payload_corrigido)
 
                 rastro.status = resultado["status"]

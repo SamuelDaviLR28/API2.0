@@ -48,8 +48,15 @@ async def enviar_rastros_pendentes(db: Session):
     for rastro in rastros:
         try:
             rastro.em_processo = True
-            rastro.tentativas_envio += 1
-            db.commit()
+            rastro.tentativas_envio = (rastro.tentativas_envio or 0) + 1
+            db.add(rastro)
+            try:
+                db.commit()
+                db.refresh(rastro)
+            except Exception as commit_err:
+                db.rollback()
+                logger.error(f"Erro no commit ao atualizar rastro {rastro.id}: {commit_err}")
+                continue
 
             payload_dict = json.loads(rastro.payload)
             events_data = payload_dict.get("eventsData", [])
@@ -82,7 +89,13 @@ async def enviar_rastros_pendentes(db: Session):
             rastro.response = resultado["response"]
             rastro.enviado = resultado["status"] == "enviado"
             rastro.em_processo = False
-            db.commit()
+            db.add(rastro)
+            try:
+                db.commit()
+                db.refresh(rastro)
+            except Exception as commit_err:
+                db.rollback()
+                logger.error(f"Erro no commit após envio do rastro {rastro.id}: {commit_err}")
 
             historico = HistoricoRastro(
                 nfkey=rastro.nfkey,
@@ -91,7 +104,11 @@ async def enviar_rastros_pendentes(db: Session):
                 response=resultado["response"]
             )
             db.add(historico)
-            db.commit()
+            try:
+                db.commit()
+            except Exception as commit_err:
+                db.rollback()
+                logger.error(f"Erro ao salvar histórico do rastro {rastro.id}: {commit_err}")
 
             await asyncio.sleep(0.5)
 
@@ -100,5 +117,9 @@ async def enviar_rastros_pendentes(db: Session):
             rastro.status = "erro"
             rastro.response = str(e)
             rastro.em_processo = False
-            db.commit()
-
+            db.add(rastro)
+            try:
+                db.commit()
+            except Exception as commit_err:
+                db.rollback()
+                logger.error(f"Erro no commit ao atualizar rastro com erro {rastro.id}: {commit_err}")

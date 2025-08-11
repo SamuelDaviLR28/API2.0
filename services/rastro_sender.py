@@ -18,7 +18,6 @@ BATCH_SIZE = 100
 PAUSE_SECONDS = 1.0
 
 def _normalize_payload_field(payload_field):
-    # payload_field pode ser dict/jsonb ou string
     if payload_field is None:
         return {}
     if isinstance(payload_field, (dict, list)):
@@ -26,14 +25,12 @@ def _normalize_payload_field(payload_field):
     try:
         return json.loads(payload_field)
     except Exception:
-        # tenta como string limpa ou retorna dict vazio
         try:
             return json.loads(str(payload_field))
         except Exception:
             return {}
 
 def _extract_events_and_courier(payload_dict):
-    # aceita tanto "eventPayload" quanto "eventsData"
     events = []
     courier_id = None
 
@@ -48,38 +45,32 @@ def _extract_events_and_courier(payload_dict):
         if isinstance(ed, list) and ed:
             block = ed[0]
             courier_id = block.get("courierId") or block.get("CourierId")
-            # eventos podem estar em 'events'
             events = block.get("events", [])
     return events or [], courier_id
 
 def _montar_payload_toutbox(nfkey, courier_id, events):
     return {
-        "eventPayload": [
+        "eventsData": [
             {
-                "trackingNumber": None,
-                "orderId": None,
                 "nfKey": nfkey,
-                "uniqueId": None,
-                "courierId": courier_id,
-                "iccids": None,
-                "additionalInfo": None,
                 "events": events,
+                "CourierId": courier_id
             }
         ]
     }
 
 async def enviar_rastro_para_toutbox(payload: dict):
-    # MANTER header Authorization conforme sua regra
     headers = {
         "Authorization": TOUTBOX_API_KEY,
         "Content-Type": "application/json; charset=utf-8"
     }
     async with httpx.AsyncClient(timeout=30) as client:
         try:
+            logger.info(f"Enviando payload para Toutbox: {json.dumps(payload, ensure_ascii=False)}")
             response = await client.post(TOUTBOX_API_URL_RASTRO, json=payload, headers=headers)
         except Exception as e:
-            # exceção de rede/timeout
-            return {"status": f"erro conexao", "response": str(e)}
+            logger.error(f"Erro conexão ao enviar rastro: {e}")
+            return {"status": "erro conexao", "response": str(e)}
 
     if response.status_code in (200, 204):
         status = "enviado"
@@ -88,10 +79,6 @@ async def enviar_rastro_para_toutbox(payload: dict):
     return {"status": status, "response": response.text}
 
 async def enviar_rastros_pendentes(db: Session):
-    """
-    Função pública chamada por rota/scheduler.
-    Recebe uma Session SQLAlchemy e processa em lotes.
-    """
     while True:
         rastros = db.query(Rastro).filter(
             ((Rastro.status == "pendente") | (Rastro.status.startswith("erro"))) &
@@ -107,7 +94,6 @@ async def enviar_rastros_pendentes(db: Session):
 
         for rastro in rastros:
             try:
-                # marca em_processo e incrementa tentativas
                 rastro.em_processo = True
                 rastro.tentativas_envio = (rastro.tentativas_envio or 0) + 1
                 db.add(rastro)
@@ -117,22 +103,17 @@ async def enviar_rastros_pendentes(db: Session):
                 except Exception as commit_err:
                     db.rollback()
                     logger.error(f"Erro no commit ao marcar rastro {rastro.id}: {commit_err}")
-                    # pula esse registro para evitar travar loop
                     continue
 
-                # normaliza payload (pode ser jsonb/dict ou string)
                 payload_dict = _normalize_payload_field(rastro.payload)
 
                 events, courier_id = _extract_events_and_courier(payload_dict)
 
-                # filtra apenas eventos com eventCode válido
                 eventos_validos = [e for e in events if e.get("eventCode") and str(e.get("eventCode")).strip()]
 
                 if not eventos_validos:
-                    # NÃO tentar enviar: marcar como erro definitivo para revisão
                     rastro.status = "erro - sem eventCode"
                     rastro.response = f"Sem eventos com eventCode válido (tentativa {rastro.tentativas_envio})"
-                    # evitar retries futuras: setar tentativas_envio ao limite
                     rastro.tentativas_envio = MAX_TENTATIVAS
                     rastro.em_processo = False
                     db.add(rastro)
@@ -141,7 +122,7 @@ async def enviar_rastros_pendentes(db: Session):
                     except Exception as e:
                         db.rollback()
                         logger.error(f"Erro commit ao marcar sem eventCode rastro {rastro.id}: {e}")
-                    # salva histórico simplificado
+
                     try:
                         historico = HistoricoRastro(
                             nfkey=rastro.nfkey,
@@ -155,14 +136,11 @@ async def enviar_rastros_pendentes(db: Session):
                         db.rollback()
                     continue
 
-                # montar payload no formato esperado pela Toutbox
                 payload_corrigido = _montar_payload_toutbox(rastro.nfkey, courier_id, eventos_validos)
 
                 resultado = await enviar_rastro_para_toutbox(payload_corrigido)
 
-                # atualizar rastro
                 rastro.status = resultado["status"]
-                # limite do tamanho da response para evitar issues com campos enormes
                 rastro.response = (resultado["response"] or "")[:2000]
                 rastro.enviado = resultado["status"] == "enviado"
                 rastro.em_processo = False
@@ -174,7 +152,6 @@ async def enviar_rastros_pendentes(db: Session):
                     db.rollback()
                     logger.error(f"Erro commit após envio rastro {rastro.id}: {commit_err}")
 
-                # salvar histórico
                 try:
                     historico = HistoricoRastro(
                         nfkey=rastro.nfkey,

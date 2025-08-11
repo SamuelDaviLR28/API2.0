@@ -48,6 +48,12 @@ def _extract_events_and_courier(payload_dict):
             events = block.get("events", [])
     return events or [], courier_id
 
+def _remove_driver_field(events):
+    for evento in events:
+        if "driver" in evento:
+            del evento["driver"]
+    return events
+
 def _montar_payload_toutbox(nfkey, courier_id, events):
     return {
         "eventsData": [
@@ -106,10 +112,12 @@ async def enviar_rastros_pendentes(db: Session):
                     continue
 
                 payload_dict = _normalize_payload_field(rastro.payload)
-
                 events, courier_id = _extract_events_and_courier(payload_dict)
 
-                eventos_validos = [e for e in events if e.get("eventCode") and str(e.get("eventCode")).strip()]
+                # Remove o campo 'driver' de cada evento
+                eventos_sem_driver = _remove_driver_field(events)
+
+                eventos_validos = [e for e in eventos_sem_driver if e.get("eventCode") and str(e.get("eventCode")).strip()]
 
                 if not eventos_validos:
                     rastro.status = "erro - sem eventCode"

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from database import get_db
 from models.rastro import Rastro
-from services.rastro_sender import enviar_rastros_pendentes
+from services.rastro_sender import enviar_rastros_pendentes_em_lotes
 from security import verificar_api_key
 import json
 import logging
@@ -85,5 +85,5 @@ def receber_rastro(data: dict, db: Session = Depends(get_db)):
 
 @router.post("/enviar-pendentes", dependencies=[Depends(verificar_api_key)])
 async def enviar_rastros(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    background_tasks.add_task(enviar_rastros_pendentes, db)
+    background_tasks.add_task(enviar_rastros_pendentes_em_lotes, db)
     return {"message": "Envio de rastros pendentes iniciado em background"}

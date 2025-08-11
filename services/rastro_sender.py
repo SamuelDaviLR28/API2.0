@@ -15,6 +15,8 @@ logger = logging.getLogger(__name__)
 TOUTBOX_API_URL_RASTRO = "http://courier.toutbox.com.br/api/v1/Parcel/Event"
 TOUTBOX_API_KEY = os.getenv("TOUTBOX_API_KEY")
 MAX_TENTATIVAS = 5
+BATCH_SIZE = 100  # número de rastros enviados por execução
+PAUSE_SECONDS = 1  # pausa entre lotes para aliviar recursos
 
 async def enviar_rastro_para_toutbox(payload: dict):
     headers = {
@@ -31,89 +33,94 @@ async def enviar_rastro_para_toutbox(payload: dict):
 
     return {"status": status, "response": response.text}
 
-async def enviar_rastros_pendentes(db: Session):
-    rastros = db.query(Rastro).filter(
-        ((Rastro.status == "pendente") | (Rastro.status.startswith("erro"))) &
-        (Rastro.tentativas_envio < MAX_TENTATIVAS) &
-        (Rastro.em_processo == False)
-    ).all()
+async def enviar_rastros_pendentes_em_lotes(db: Session):
+    while True:
+        # Buscar lote limitado de rastros pendentes
+        rastros = db.query(Rastro).filter(
+            ((Rastro.status == "pendente") | (Rastro.status.startswith("erro"))) &
+            (Rastro.tentativas_envio < MAX_TENTATIVAS) &
+            (Rastro.em_processo == False)
+        ).limit(BATCH_SIZE).all()
 
-    logger.info(f"Enviando {len(rastros)} rastros pendentes...")
+        if not rastros:
+            logger.info("Não há mais rastros pendentes para envio.")
+            break
 
-    for rastro in rastros:
-        try:
-            rastro.em_processo = True
-            rastro.tentativas_envio = (rastro.tentativas_envio or 0) + 1
-            db.add(rastro)
-            db.commit()
-            db.refresh(rastro)
+        logger.info(f"Enviando lote de {len(rastros)} rastros pendentes...")
 
-            payload_dict = json.loads(rastro.payload)
-            # Extrair dados da estrutura antiga ou aceitar apenas o payload salvo, mas montar o payload novo abaixo
-            events = []
-            courier_id = None
+        for rastro in rastros:
+            try:
+                rastro.em_processo = True
+                rastro.tentativas_envio = (rastro.tentativas_envio or 0) + 1
+                db.add(rastro)
+                db.commit()
+                db.refresh(rastro)
 
-            # Detectar se payload tem eventPayload (em caso de reenvio) ou eventsData (recebimento original)
-            if "eventPayload" in payload_dict:
-                ep = payload_dict["eventPayload"]
-                if ep and isinstance(ep, list):
-                    courier_id = ep[0].get("courierId")
-                    events = ep[0].get("events", [])
-            elif "eventsData" in payload_dict:
-                ed = payload_dict["eventsData"]
-                if ed and isinstance(ed, list):
-                    courier_id = ed[0].get("CourierId")
-                    events = ed[0].get("events", [])
-            else:
-                raise ValueError("Payload não contém 'eventPayload' nem 'eventsData'")
+                payload_dict = json.loads(rastro.payload)
 
-            # Validar eventCode de cada evento
-            eventos_validos = [e for e in events if e.get("eventCode") and e.get("eventCode").strip()]
-            if not eventos_validos:
-                raise ValueError(f"Todos os eventos sem eventCode válido para nfkey {rastro.nfkey}")
+                events = []
+                courier_id = None
 
-            # Montar o payload correto para Toutbox
-            payload_corrigido = {
-                "eventPayload": [
-                    {
-                        "trackingNumber": None,
-                        "orderId": None,
-                        "nfKey": rastro.nfkey,
-                        "uniqueId": None,
-                        "courierId": courier_id,
-                        "iccids": None,
-                        "additionalInfo": None,
-                        "events": eventos_validos,
-                    }
-                ]
-            }
+                if "eventPayload" in payload_dict:
+                    ep = payload_dict["eventPayload"]
+                    if ep and isinstance(ep, list):
+                        courier_id = ep[0].get("courierId")
+                        events = ep[0].get("events", [])
+                elif "eventsData" in payload_dict:
+                    ed = payload_dict["eventsData"]
+                    if ed and isinstance(ed, list):
+                        courier_id = ed[0].get("CourierId")
+                        events = ed[0].get("events", [])
+                else:
+                    raise ValueError("Payload não contém 'eventPayload' nem 'eventsData'")
 
-            resultado = await enviar_rastro_para_toutbox(payload_corrigido)
+                eventos_validos = [e for e in events if e.get("eventCode") and e.get("eventCode").strip()]
+                if not eventos_validos:
+                    raise ValueError(f"Todos os eventos sem eventCode válido para nfkey {rastro.nfkey}")
 
-            rastro.status = resultado["status"]
-            rastro.response = resultado["response"]
-            rastro.enviado = resultado["status"] == "enviado"
-            rastro.em_processo = False
-            db.add(rastro)
-            db.commit()
-            db.refresh(rastro)
+                payload_corrigido = {
+                    "eventPayload": [
+                        {
+                            "trackingNumber": None,
+                            "orderId": None,
+                            "nfKey": rastro.nfkey,
+                            "uniqueId": None,
+                            "courierId": courier_id,
+                            "iccids": None,
+                            "additionalInfo": None,
+                            "events": eventos_validos,
+                        }
+                    ]
+                }
 
-            # Salvar histórico
-            historico = HistoricoRastro(
-                nfkey=rastro.nfkey,
-                payload=json.dumps(payload_corrigido, ensure_ascii=False),
-                status=rastro.status,
-                response=resultado["response"]
-            )
-            db.add(historico)
-            db.commit()
+                resultado = await enviar_rastro_para_toutbox(payload_corrigido)
 
-            await asyncio.sleep(0.5)  # para evitar bursts excessivos
+                rastro.status = resultado["status"]
+                rastro.response = resultado["response"]
+                rastro.enviado = resultado["status"] == "enviado"
+                rastro.em_processo = False
+                db.add(rastro)
+                db.commit()
+                db.refresh(rastro)
 
-        except Exception as e:
-            logger.exception(f"Erro ao enviar rastro NFKey {rastro.nfkey}: {e}")
-            rastro.status = "erro"
-            rastro.response = str(e)
-            rastro.em_processo = False
-            db.add(rastro)
-            db.commit()
+                historico = HistoricoRastro(
+                    nfkey=rastro.nfkey,
+                    payload=json.dumps(payload_corrigido, ensure_ascii=False),
+                    status=rastro.status,
+                    response=resultado["response"]
+                )
+                db.add(historico)
+                db.commit()
+
+                await asyncio.sleep(0.5)
+
+            except Exception as e:
+                logger.exception(f"Erro ao enviar rastro NFKey {rastro.nfkey}: {e}")
+                rastro.status = "erro"
+                rastro.response = str(e)
+                rastro.em_processo = False
+                db.add(rastro)
+                db.commit()
+
+        # Pausa entre lotes para não sobrecarregar
+        await asyncio.sleep(PAUSE_SECONDS)

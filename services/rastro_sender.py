@@ -2,25 +2,19 @@ import json
 import logging
 import asyncio
 import httpx
-from datetime import datetime, timezone
-import os
 from sqlalchemy.orm import Session
 from models.rastro import Rastro
 from models.historico_rastro import HistoricoRastro
 from models.patch import PatchUpdate
-from dotenv import load_dotenv
-
-load_dotenv()
 
 logger = logging.getLogger(__name__)
 
 TOUTBOX_API_URL_RASTRO = "http://courier.toutbox.com.br/api/v1/Parcel/Event"
-TOUTBOX_API_KEY = os.getenv("TOUTBOX_API_KEY")
 MAX_TENTATIVAS = 5
 
-async def enviar_rastro_para_toutbox(payload: dict):
+async def enviar_rastro_para_toutbox(payload: dict, api_key: str):
     headers = {
-        "Authorization": TOUTBOX_API_KEY,
+        "Authorization": api_key,
         "Content-Type": "application/json; charset=utf-8"
     }
     async with httpx.AsyncClient(timeout=20) as client:
@@ -32,31 +26,28 @@ async def enviar_rastro_para_toutbox(payload: dict):
         status = f"erro {response.status_code}"
     return {"status": status, "response": response.text}
 
-async def enviar_rastros_pendentes(db: Session):
+async def enviar_rastros_pendentes(db: Session, api_key: str):
+    # Buscar rastros pendentes onde o patch correspondente está "enviado"
     rastros = db.query(Rastro).join(
         PatchUpdate,
         (Rastro.nfkey == PatchUpdate.nfkey) & (Rastro.courier_id == PatchUpdate.courier_id)
     ).filter(
-        ((Rastro.status == "pendente") | (Rastro.status.startswith("erro"))) &
+        ((Rastro.status == "pendente") | (Rastro.status.like("erro%"))) &
         (Rastro.tentativas_envio < MAX_TENTATIVAS) &
         (Rastro.em_processo == False) &
-        (PatchUpdate.status.in_([200, 204]))
+        (PatchUpdate.status == "enviado")
     ).all()
 
     logger.info(f"Enviando {len(rastros)} rastros pendentes com patch confirmado...")
 
     for rastro in rastros:
         try:
+            # Marcar que está em processo para evitar concorrência
             rastro.em_processo = True
             rastro.tentativas_envio = (rastro.tentativas_envio or 0) + 1
             db.add(rastro)
-            try:
-                db.commit()
-                db.refresh(rastro)
-            except Exception as commit_err:
-                db.rollback()
-                logger.error(f"Erro no commit ao atualizar rastro {rastro.id}: {commit_err}")
-                continue
+            db.commit()
+            db.refresh(rastro)
 
             payload_dict = json.loads(rastro.payload)
             events_data = payload_dict.get("eventsData", [])
@@ -67,59 +58,46 @@ async def enviar_rastros_pendentes(db: Session):
             courier_id = events_data[0].get("CourierId")
             eventos = events_data[0].get("events", [])
 
-            # Verifica se todos os eventos têm eventCode válido
-            for evento in eventos:
-                event_code = evento.get("eventCode")
-                if not event_code or not event_code.strip():
-                    raise ValueError(f"Evento com eventCode inválido em nfkey {rastro.nfkey}")
+            # Filtrar só eventos com eventCode válido (não vazio e não nulo)
+            eventos_validos = [e for e in eventos if e.get("eventCode") and e.get("eventCode").strip()]
+            if not eventos_validos:
+                raise ValueError(f"Todos os eventos sem eventCode válido para nfkey {rastro.nfkey}")
 
             payload_corrigido = {
                 "eventsData": [
                     {
                         "nfKey": rastro.nfkey,
-                        "events": eventos,
+                        "events": eventos_validos,
                         "CourierId": courier_id,
                     }
                 ]
             }
 
-            resultado = await enviar_rastro_para_toutbox(payload_corrigido)
+            resultado = await enviar_rastro_para_toutbox(payload_corrigido, api_key)
 
             rastro.status = resultado["status"]
-            rastro.response = resultado["response"]
+            rastro.response = resultado["response"][:255]
             rastro.enviado = resultado["status"] == "enviado"
             rastro.em_processo = False
             db.add(rastro)
-            try:
-                db.commit()
-                db.refresh(rastro)
-            except Exception as commit_err:
-                db.rollback()
-                logger.error(f"Erro no commit após envio do rastro {rastro.id}: {commit_err}")
+            db.commit()
+            db.refresh(rastro)
 
             historico = HistoricoRastro(
                 nfkey=rastro.nfkey,
                 payload=json.dumps(payload_corrigido, ensure_ascii=False),
                 status=rastro.status,
-                response=resultado["response"]
+                response=resultado["response"][:255]
             )
             db.add(historico)
-            try:
-                db.commit()
-            except Exception as commit_err:
-                db.rollback()
-                logger.error(f"Erro ao salvar histórico do rastro {rastro.id}: {commit_err}")
+            db.commit()
 
             await asyncio.sleep(0.5)
 
         except Exception as e:
             logger.exception(f"Erro ao enviar rastro NFKey {rastro.nfkey}: {e}")
             rastro.status = "erro"
-            rastro.response = str(e)
+            rastro.response = str(e)[:255]
             rastro.em_processo = False
             db.add(rastro)
-            try:
-                db.commit()
-            except Exception as commit_err:
-                db.rollback()
-                logger.error(f"Erro no commit ao atualizar rastro com erro {rastro.id}: {commit_err}")
+            db.commit()

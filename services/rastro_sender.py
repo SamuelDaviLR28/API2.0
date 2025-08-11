@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 TOUTBOX_API_URL_RASTRO = "http://courier.toutbox.com.br/api/v1/Parcel/Event"
 TOUTBOX_API_KEY = os.getenv("TOUTBOX_API_KEY")
 MAX_TENTATIVAS = 5
-BATCH_SIZE = 100  # número de rastros enviados por execução
-PAUSE_SECONDS = 1  # pausa entre lotes para aliviar recursos
+BATCH_SIZE = 100
+PAUSE_SECONDS = 1
 
 async def enviar_rastro_para_toutbox(payload: dict):
     headers = {
@@ -33,9 +33,8 @@ async def enviar_rastro_para_toutbox(payload: dict):
 
     return {"status": status, "response": response.text}
 
-async def enviar_rastros_pendentes_em_lotes(db: Session):
+async def enviar_rastros_pendentes(db: Session):
     while True:
-        # Buscar lote limitado de rastros pendentes
         rastros = db.query(Rastro).filter(
             ((Rastro.status == "pendente") | (Rastro.status.startswith("erro"))) &
             (Rastro.tentativas_envio < MAX_TENTATIVAS) &
@@ -122,5 +121,4 @@ async def enviar_rastros_pendentes_em_lotes(db: Session):
                 db.add(rastro)
                 db.commit()
 
-        # Pausa entre lotes para não sobrecarregar
         await asyncio.sleep(PAUSE_SECONDS)

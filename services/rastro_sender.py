@@ -4,29 +4,19 @@ import asyncio
 import httpx
 from datetime import datetime, timezone
 import os
+from sqlalchemy.orm import Session
 from models.rastro import Rastro
 from models.historico_rastro import HistoricoRastro
-from sqlalchemy.orm import Session
+from models.patch import PatchUpdate
 from dotenv import load_dotenv
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-TOUTBOX_API_URL = "http://courier.toutbox.com.br/api/v1/Parcel/Event"
+TOUTBOX_API_URL_RASTRO = "http://courier.toutbox.com.br/api/v1/Parcel/Event"
 TOUTBOX_API_KEY = os.getenv("TOUTBOX_API_KEY")
 MAX_TENTATIVAS = 5
-
-def montar_payload_rastro(evento: dict, nfkey: str, courier_id: int):
-    return {
-        "eventsData": [
-            {
-                "nfKey": nfkey,
-                "events": [evento],
-                "CourierId": courier_id
-            }
-        ]
-    }
 
 async def enviar_rastro_para_toutbox(payload: dict):
     headers = {
@@ -34,7 +24,7 @@ async def enviar_rastro_para_toutbox(payload: dict):
         "Content-Type": "application/json; charset=utf-8"
     }
     async with httpx.AsyncClient(timeout=20) as client:
-        response = await client.post(TOUTBOX_API_URL, json=payload, headers=headers)
+        response = await client.post(TOUTBOX_API_URL_RASTRO, json=payload, headers=headers)
 
     if response.status_code in (200, 204):
         status = "enviado"
@@ -43,15 +33,19 @@ async def enviar_rastro_para_toutbox(payload: dict):
     return {"status": status, "response": response.text}
 
 async def enviar_rastros_pendentes(db: Session):
-    pendentes = db.query(Rastro).filter(
-        ((Rastro.status == "pendente") | (Rastro.status == "erro")) &
+    rastros = db.query(Rastro).join(
+        PatchUpdate,
+        (Rastro.nfkey == PatchUpdate.nfkey) & (Rastro.courier_id == PatchUpdate.courier_id)
+    ).filter(
+        ((Rastro.status == "pendente") | (Rastro.status.startswith("erro"))) &
         (Rastro.tentativas_envio < MAX_TENTATIVAS) &
-        (Rastro.em_processo == False)
+        (Rastro.em_processo == False) &
+        (PatchUpdate.status.in_([200, 204]))
     ).all()
 
-    logger.info(f"Encontrados {len(pendentes)} rastros para enviar.")
+    logger.info(f"Enviando {len(rastros)} rastros pendentes com patch confirmado...")
 
-    for rastro in pendentes:
+    for rastro in rastros:
         try:
             rastro.em_processo = True
             rastro.tentativas_envio += 1
@@ -66,12 +60,11 @@ async def enviar_rastros_pendentes(db: Session):
             courier_id = events_data[0].get("CourierId")
             eventos = events_data[0].get("events", [])
 
-            # Corrige eventos sem eventCode e sem date
+            # Verifica se todos os eventos têm eventCode válido
             for evento in eventos:
-                if not evento.get("eventCode") or not evento.get("eventCode").strip():
-                    evento["eventCode"] = "2046"  # Ajuste o código conforme necessário
-                if not evento.get("date"):
-                    evento["date"] = datetime.now(timezone.utc).isoformat()
+                event_code = evento.get("eventCode")
+                if not event_code or not event_code.strip():
+                    raise ValueError(f"Evento com eventCode inválido em nfkey {rastro.nfkey}")
 
             payload_corrigido = {
                 "eventsData": [
@@ -108,4 +101,3 @@ async def enviar_rastros_pendentes(db: Session):
             rastro.response = str(e)
             rastro.em_processo = False
             db.commit()
-

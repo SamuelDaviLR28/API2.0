@@ -20,7 +20,7 @@ MAX_TENTATIVAS = 5
 
 async def enviar_rastro_para_toutbox(payload: dict):
     headers = {
-        "Authentication": TOUTBOX_API_KEY,
+        "Authorization": TOUTBOX_API_KEY,
         "Content-Type": "application/json; charset=utf-8"
     }
     async with httpx.AsyncClient(timeout=20) as client:
@@ -101,3 +101,4 @@ async def enviar_rastros_pendentes(db: Session):
             rastro.response = str(e)
             rastro.em_processo = False
             db.commit()
+

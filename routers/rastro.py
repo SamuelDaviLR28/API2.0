@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
-from database import get_db, SessionLocal
+from database import get_db
 from models.rastro import Rastro
 from services.rastro_sender import enviar_rastros_pendentes
 from security import verificar_api_key
 import json
 import logging
+from datetime import datetime
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -29,14 +30,30 @@ def receber_rastro(data: dict, db: Session = Depends(get_db)):
                 raise HTTPException(status_code=400, detail="Nenhum evento informado")
 
             evento = eventos[0]
+
+            event_code = evento.get("eventCode")
+            event_date = evento.get("date")
+
+            if not event_code or not event_code.strip():
+                raise HTTPException(status_code=400, detail="Campo obrigatório 'eventCode' ausente ou vazio")
+
+            if not event_date:
+                raise HTTPException(status_code=400, detail="Campo obrigatório 'date' ausente")
+
+            # Valida formato ISO da data, aceitando 'Z' no fim
+            try:
+                datetime.fromisoformat(event_date.replace("Z", "+00:00"))
+            except Exception:
+                raise HTTPException(status_code=400, detail="Campo 'date' inválido, formato esperado ISO8601")
+
             geo = evento.get("geo") or {}
 
             rastro = Rastro(
                 nfkey=nfkey,
                 courier_id=courier_id,
-                event_code=evento.get("eventCode"),
+                event_code=event_code,
                 description=evento.get("description"),
-                date=evento.get("date"),
+                date=event_date,
                 address=evento.get("address"),
                 number=evento.get("number"),
                 city=evento.get("city"),

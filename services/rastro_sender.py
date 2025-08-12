@@ -34,13 +34,12 @@ def ajustar_eventos(events):
 
         # Ajusta files para [] se não houver URL válida
         if "files" in e:
-            valid_files = [f for f in e["files"] if f.get("url") and f["url"].strip()]
-            e["files"] = valid_files if valid_files else []
+            if not any(f.get("url") for f in e["files"]):
+                e["files"] = []
 
-        # Ajusta orderId para None se vazio, não numérico ou inválido (ex: número OV bug)
+        # Ajusta orderId para None se vazio ou inválido
         if "orderId" in e:
-            val = e["orderId"]
-            if val is None or str(val).strip() == "" or not str(val).isdigit():
+            if not e["orderId"]:
                 e["orderId"] = None
 
     return events

@@ -19,53 +19,39 @@ class Produto(BaseModel):
 
 
 class Transportadora(BaseModel):
-    Id: str
-    Nome: str
-    NomeServico: str
-    IdServico: str
-    CodigoRastreio: str
-    ListaPostagem: str
-    Reversa: bool
-    Coleta: bool
-    Dispatch: bool
-    AlocacaoAutomatica: bool
-    ValorAR: float
-    ValorAverbadoPago: float
-    ValorDeclarado: float
-    ValorFrete: float
-    Prioridade: bool
-    # Campos opcionais adicionais
-    PrevisaoDeEntrega: Optional[str] = None
-    DataPrometida: Optional[str] = None
-    CodigoAutorizacao: Optional[str] = None
-    PrazoDiasUteis: Optional[int] = None
-    PrazoEntregaFinal: Optional[str] = None
-    CNPJ: Optional[str] = None
-    ResponsavelRecebimento: Optional[str] = None
-    SenhaVerificacao: Optional[str] = None
-    TipoOperacao: Optional[str] = None
-    TipoDevolucao: Optional[str] = None
-    MotivoDevolucao: Optional[str] = None
-    TipoPrioridade: Optional[str] = None
-    ServicosAdicionais: Optional[str] = None
+    Id: Optional[str] = None
+    Nome: Optional[str] = None
+    NomeServico: Optional[str] = None
+    IdServico: Optional[str] = None
+    CodigoRastreio: Optional[str] = None
+    ListaPostagem: Optional[str] = None
+    Reversa: Optional[bool] = None
+    Coleta: Optional[bool] = None
+    Dispatch: Optional[bool] = None
+    AlocacaoAutomatica: Optional[bool] = None
+    ValorAR: Optional[float] = None
+    ValorAverbadoPago: Optional[float] = None
+    ValorDeclarado: Optional[float] = None
+    ValorFrete: Optional[float] = None
+    Prioridade: Optional[bool] = None
 
 
 class Pessoa(BaseModel):
-    Nome: str
+    Nome: Optional[str] = None
     CPFCNPJ: Optional[str] = None
     Telefone: Optional[str] = None
     TelefoneFixo: Optional[str] = None
     TelefoneAdicional: Optional[str] = None
     Email: Optional[str] = None
     Empresa: Optional[str] = None
-    Endereco: str
-    Numero: str
+    Endereco: Optional[str] = None
+    Numero: Optional[str] = None
     Complemento: Optional[str] = None
     Bairro: Optional[str] = None
-    Cidade: str
-    Estado: str
+    Cidade: Optional[str] = None
+    Estado: Optional[str] = None
     Pais: Optional[str] = None
-    CEP: str
+    CEP: Optional[str] = None
     IE: Optional[str] = None
     Loja: Optional[str] = None
     NomeCentroDistribuicao: Optional[str] = None
@@ -80,19 +66,19 @@ class Frete(BaseModel):
 
 
 class NotaFiscal(BaseModel):
-    DataEmissao: datetime
-    Numero: int
-    Serie: int
+    DataEmissao: Optional[datetime] = None
+    Numero: Optional[int] = None
+    Serie: Optional[int] = None
     Chave: Optional[str] = None
-    ValorTotal: float
-    ValorTotalProdutos: float
+    ValorTotal: Optional[float] = None
+    ValorTotalProdutos: Optional[float] = None
     Cfop: Optional[str] = None
     StringXML: Optional[str] = None
 
 
 class InfosAdicionais(BaseModel):
-    EntregaAgendada: bool
-    Portabilidade: bool
+    EntregaAgendada: Optional[bool] = None
+    Portabilidade: Optional[bool] = None
     CartaoPostagem: Optional[str] = None
     CodigoAdmnistrativo: Optional[str] = None
     ContratoCorreios: Optional[str] = None

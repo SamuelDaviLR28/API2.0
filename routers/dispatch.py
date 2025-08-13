@@ -14,15 +14,17 @@ router = APIRouter()
 @router.post("/", dependencies=[Depends(verificar_api_key)])
 async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db)):
     try:
-        if not pedido.Itens or len(pedido.Itens) == 0:
+        if not pedido.Itens:
             raise HTTPException(status_code=400, detail="Pedido sem itens.")
 
         item = pedido.Itens[0]
 
+        # Nota fiscal pode ser None, mas se existir precisa de chave
         chave_nfe = pedido.NotaFiscal.Chave if pedido.NotaFiscal else None
-        if not chave_nfe:
+        if chave_nfe is None:
             raise HTTPException(status_code=400, detail="Nota Fiscal ausente ou sem chave.")
 
+        # Valida Frete mínimo
         if not item.Frete or not item.Frete.Remetente or not item.Frete.Destinatario:
             raise HTTPException(status_code=400, detail="Faltam dados de Frete, Remetente ou Destinatário.")
 
@@ -38,7 +40,7 @@ async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db
         if pedido_existente:
             return {"status": "Pedido já existente", "id": pedido_existente.id}
 
-        # Serializa JSON
+        # Serializa JSON completo
         def converter(obj):
             if isinstance(obj, datetime):
                 return obj.isoformat()
@@ -46,7 +48,6 @@ async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db
 
         json_serializado = json.dumps(pedido.model_dump(), indent=2, ensure_ascii=False, default=converter)
 
-        # Salva pedido
         pedido_salvo = Pedido(
             nfkey=chave_nfe,
             numero_pedido=pedido.NumeroPedido,
@@ -55,23 +56,19 @@ async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db
             uf_destinatario=uf_destinatario.strip(),
             json_completo=json_serializado
         )
+
         db.add(pedido_salvo)
         db.commit()
         db.refresh(pedido_salvo)
 
-        # Transportadora
-        if not item.Frete.Transportadora or not item.Frete.Transportadora.Id:
-            raise HTTPException(status_code=400, detail="Transportadora ausente ou inválida.")
-        try:
-            courier_id = int(item.Frete.Transportadora.Id)
-        except ValueError:
-            raise HTTPException(status_code=400, detail=f"Transportadora Id inválido: {item.Frete.Transportadora.Id}")
-
-        patch_existente = db.query(PatchUpdate).filter_by(nfkey=chave_nfe, courier_id=courier_id).first()
-        if not patch_existente:
-            novo_patch = PatchUpdate(nfkey=chave_nfe, courier_id=courier_id)
-            db.add(novo_patch)
-            db.commit()
+        # Transportadora é opcional
+        courier_id = int(item.Frete.Transportadora.Id) if item.Frete.Transportadora and item.Frete.Transportadora.Id else None
+        if courier_id:
+            patch_existente = db.query(PatchUpdate).filter_by(nfkey=chave_nfe, courier_id=courier_id).first()
+            if not patch_existente:
+                novo_patch = PatchUpdate(nfkey=chave_nfe, courier_id=courier_id)
+                db.add(novo_patch)
+                db.commit()
 
         return {"status": "Pedido salvo com sucesso", "id": pedido_salvo.id}
 

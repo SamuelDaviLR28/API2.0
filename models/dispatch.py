@@ -1,7 +1,6 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
-
 
 class Produto(BaseModel):
     Descricao: str
@@ -16,7 +15,6 @@ class Produto(BaseModel):
     Comprimento: Optional[float] = None
     Largura: Optional[float] = None
     Peso: Optional[float] = None
-
 
 class Transportadora(BaseModel):
     Id: Optional[str] = None
@@ -34,7 +32,6 @@ class Transportadora(BaseModel):
     ValorDeclarado: Optional[float] = None
     ValorFrete: Optional[float] = None
     Prioridade: Optional[bool] = None
-
 
 class Pessoa(BaseModel):
     Nome: Optional[str] = None
@@ -57,13 +54,11 @@ class Pessoa(BaseModel):
     NomeCentroDistribuicao: Optional[str] = None
     CodigoCentroDistribuicao: Optional[str] = None
 
-
 class Frete(BaseModel):
     Transportadora: Optional[Transportadora] = None
-    Destinatario: Pessoa
-    Remetente: Pessoa
+    Destinatario: Optional[Pessoa] = None
+    Remetente: Optional[Pessoa] = None
     Tomador: Optional[Pessoa] = None
-
 
 class NotaFiscal(BaseModel):
     DataEmissao: Optional[datetime] = None
@@ -74,7 +69,6 @@ class NotaFiscal(BaseModel):
     ValorTotalProdutos: Optional[float] = None
     Cfop: Optional[str] = None
     StringXML: Optional[str] = None
-
 
 class Item(BaseModel):
     IdUnico: str
@@ -87,17 +81,14 @@ class Item(BaseModel):
     Produtos: List[Produto]
     Frete: Frete
 
-
 class CanalDeVenda(BaseModel):
     Id: Optional[str] = None
     Nome: Optional[str] = None
     Tipo: Optional[str] = None
 
-
 class Warehouse(BaseModel):
     Id: Optional[str] = None
     Nome: Optional[str] = None
-
 
 class DispatchRequest(BaseModel):
     CriacaoPedido: datetime
@@ -110,8 +101,4 @@ class DispatchRequest(BaseModel):
     Warehouse: Optional[Warehouse] = None
     Itens: List[Item]
     NotaFiscal: Optional[NotaFiscal] = None
-    InfosAdicionais: Optional[dict] = None
-    Marketplace: Optional[str] = None
-    Marca: Optional[str] = None
-    Seller: Optional[str] = None
-    IdsAuxiliares: Optional[List[str]] = None
+    InfosAdicionais: Optional[dict] = None  # Pode ser dict genérico se quiser

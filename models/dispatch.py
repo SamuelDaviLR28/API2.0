@@ -15,7 +15,6 @@ class Produto(BaseModel):
     Comprimento: Optional[float] = None
     Largura: Optional[float] = None
     Peso: Optional[float] = None
-    model_config = {"extra": "allow"}
 
 class Transportadora(BaseModel):
     Id: Optional[str] = None
@@ -33,24 +32,33 @@ class Transportadora(BaseModel):
     ValorDeclarado: Optional[float] = None
     ValorFrete: Optional[float] = None
     Prioridade: Optional[bool] = None
-    model_config = {"extra": "allow"}
 
 class Pessoa(BaseModel):
     Nome: Optional[str] = None
-    Estado: Optional[str] = None
-    Cidade: Optional[str] = None
+    CPFCNPJ: Optional[str] = None
+    Telefone: Optional[str] = None
+    TelefoneFixo: Optional[str] = None
+    TelefoneAdicional: Optional[str] = None
+    Email: Optional[str] = None
+    Empresa: Optional[str] = None
     Endereco: Optional[str] = None
     Numero: Optional[str] = None
-    CEP: Optional[str] = None
+    Complemento: Optional[str] = None
+    Bairro: Optional[str] = None
+    Cidade: Optional[str] = None
+    Estado: Optional[str] = None
     Pais: Optional[str] = None
-    model_config = {"extra": "allow"}
+    CEP: Optional[str] = None
+    IE: Optional[str] = None
+    Loja: Optional[str] = None
+    NomeCentroDistribuicao: Optional[str] = None
+    CodigoCentroDistribuicao: Optional[str] = None
 
 class Frete(BaseModel):
-    Transportadora: Optional[Transportadora] = None
-    Destinatario: Optional[Pessoa] = None
-    Remetente: Optional[Pessoa] = None
-    Tomador: Optional[Pessoa] = None
-    model_config = {"extra": "allow"}
+    Transportadora: Transportadora
+    Destinatario: Pessoa
+    Remetente: Pessoa
+    Tomador: Pessoa
 
 class NotaFiscal(BaseModel):
     DataEmissao: Optional[datetime] = None
@@ -58,32 +66,61 @@ class NotaFiscal(BaseModel):
     Serie: Optional[int] = None
     Chave: Optional[str] = None
     ValorTotal: Optional[float] = None
-    model_config = {"extra": "allow"}
+    ValorTotalProdutos: Optional[float] = None
+    Cfop: Optional[str] = None
+    StringXML: Optional[str] = None
+
+class InfosAdicionais(BaseModel):
+    EntregaAgendada: Optional[bool] = None
+    Portabilidade: Optional[bool] = None
+    CartaoPostagem: Optional[str] = None
+    CodigoAdmnistrativo: Optional[str] = None
+    ContratoCorreios: Optional[str] = None
+    DataAgendamento: Optional[str] = None
+    PeriodoEntregaAgendamento: Optional[str] = None
+    Cluster: Optional[str] = None
+    TecnologiaDeAcesso: Optional[str] = None
+    Acronimo: Optional[str] = None
+    IdCliente: Optional[str] = None
+    IdDestinatario: Optional[str] = None
+    SegmentoCliente: Optional[str] = None
 
 class Item(BaseModel):
     IdUnico: str
     QuantidadeProdutos: int
     Volumes: int
+    Largura: Optional[float] = None
+    Peso: Optional[float] = None
+    Altura: Optional[float] = None
+    Comprimento: Optional[float] = None
     Produtos: List[Produto]
-    Frete: Optional[Frete] = None
-    model_config = {"extra": "allow"}
+    Frete: Frete
 
 class CanalDeVenda(BaseModel):
     Id: Optional[str] = None
     Nome: Optional[str] = None
     Tipo: Optional[str] = None
-    model_config = {"extra": "allow"}
 
 class Warehouse(BaseModel):
     Id: Optional[str] = None
     Nome: Optional[str] = None
-    model_config = {"extra": "allow"}
 
 class DispatchRequest(BaseModel):
     CriacaoPedido: datetime
+    DataPagamento: Optional[datetime] = None
     NumeroPedido: str
-    Itens: List[Item]
+    NumeroPedidoMarketplace: Optional[str] = None
+    NumeroPedidoErp: Optional[str] = None
+    NumeroPedidoAux: Optional[str] = None
     CanalDeVenda: Optional[CanalDeVenda] = None
     Warehouse: Optional[Warehouse] = None
+    UnidadeDeNegocio: Optional[str] = None
+    Rede: Optional[str] = None
+    Campanha: Optional[str] = None
+    Itens: List[Item]
     NotaFiscal: Optional[NotaFiscal] = None
-    model_config = {"extra": "allow"}
+    InfosAdicionais: Optional[InfosAdicionais] = None
+    Marketplace: Optional[str] = None
+    Marca: Optional[str] = None
+    Seller: Optional[str] = None
+    IdsAuxiliares: Optional[List[str]] = None

@@ -99,6 +99,12 @@ class DispatchRequest(BaseModel):
     NumeroPedidoAux: Optional[str] = None
     CanalDeVenda: Optional[CanalDeVenda] = None
     Warehouse: Optional[Warehouse] = None
+    UnidadeDeNegocio: Optional[str] = None
+    Rede: Optional[str] = None
+    Campanha: Optional[str] = None
     Itens: List[Item]
     NotaFiscal: Optional[NotaFiscal] = None
-    InfosAdicionais: Optional[dict] = None  # Pode ser dict genérico se quiser
+    Marketplace: Optional[str] = None
+    Marca: Optional[str] = None
+    Seller: Optional[str] = None
+    IdsAuxiliares: Optional[List[str]] = None

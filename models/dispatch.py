@@ -21,19 +21,32 @@ class Produto(BaseModel):
 class Transportadora(BaseModel):
     Id: str
     Nome: str
-    NomeServico: str
-    IdServico: str
-    CodigoRastreio: str
-    ListaPostagem: str
-    Reversa: bool
-    Coleta: bool
-    Dispatch: bool
-    AlocacaoAutomatica: bool
-    ValorAR: float
-    ValorAverbadoPago: float
-    ValorDeclarado: float
-    ValorFrete: float
-    Prioridade: bool
+    NomeServico: Optional[str] = None
+    IdServico: Optional[str] = None
+    CodigoRastreio: Optional[str] = None
+    ListaPostagem: Optional[str] = None
+    Reversa: Optional[bool] = None
+    Coleta: Optional[bool] = None
+    Dispatch: Optional[bool] = None
+    AlocacaoAutomatica: Optional[bool] = None
+    ValorAR: Optional[float] = None
+    ValorAverbadoPago: Optional[float] = None
+    ValorDeclarado: Optional[float] = None
+    ValorFrete: Optional[float] = None
+    Prioridade: Optional[bool] = None
+    PrevisaoDeEntrega: Optional[datetime] = None
+    DataPrometida: Optional[datetime] = None
+    CodigoAutorizacao: Optional[str] = None
+    PrazoDiasUteis: Optional[int] = None
+    PrazoEntregaFinal: Optional[datetime] = None
+    CNPJ: Optional[str] = None
+    ResponsavelRecebimento: Optional[str] = None
+    SenhaVerificacao: Optional[str] = None
+    TipoOperacao: Optional[str] = None
+    TipoDevolucao: Optional[str] = None
+    MotivoDevolucao: Optional[str] = None
+    TipoPrioridade: Optional[str] = None
+    ServicosAdicionais: Optional[str] = None
 
 
 class Pessoa(BaseModel):
@@ -47,10 +60,10 @@ class Pessoa(BaseModel):
     Endereco: str
     Numero: str
     Complemento: Optional[str] = None
-    Bairro: str
+    Bairro: Optional[str] = None
     Cidade: str
     Estado: str
-    Pais: str
+    Pais: Optional[str] = None
     CEP: str
     IE: Optional[str] = None
     Loja: Optional[str] = None
@@ -69,7 +82,7 @@ class NotaFiscal(BaseModel):
     DataEmissao: datetime
     Numero: int
     Serie: int
-    Chave: Optional[str]
+    Chave: Optional[str] = None
     ValorTotal: float
     ValorTotalProdutos: float
     Cfop: Optional[str] = None
@@ -96,15 +109,13 @@ class Item(BaseModel):
     IdUnico: str
     QuantidadeProdutos: int
     Volumes: int
-    Largura: Optional[float]
-    Peso: Optional[float]
-    Altura: Optional[float]
-    Comprimento: Optional[float]
+    Largura: Optional[float] = None
+    Peso: Optional[float] = None
+    Altura: Optional[float] = None
+    Comprimento: Optional[float] = None
+    Formato: Optional[str] = None
     Produtos: List[Produto]
     Frete: Frete
-    # ❌ Removidos:
-    # NotaFiscal: NotaFiscal
-    # InfosAdicionais: InfosAdicionais
 
 
 class CanalDeVenda(BaseModel):
@@ -121,11 +132,18 @@ class Warehouse(BaseModel):
 class DispatchRequest(BaseModel):
     CriacaoPedido: datetime
     NumeroPedido: str
-    NumeroPedidoMarketplace: Optional[str]
-    NumeroPedidoErp: Optional[str]
+    NumeroPedidoMarketplace: Optional[str] = None
+    NumeroPedidoErp: Optional[str] = None
     NumeroPedidoAux: str
-    CanalDeVenda: Optional[CanalDeVenda]
-    Warehouse: Optional[Warehouse]
-    NotaFiscal: NotaFiscal                    # ✅ Agora aqui
-    InfosAdicionais: InfosAdicionais          # ✅ Agora aqui
+    CanalDeVenda: Optional[CanalDeVenda] = None
+    Warehouse: Optional[Warehouse] = None
+    NotaFiscal: NotaFiscal
+    InfosAdicionais: InfosAdicionais
     Itens: List[Item]
+    IdsAuxiliares: Optional[List[str]] = None
+    Marketplace: Optional[str] = None
+    Marca: Optional[str] = None
+    Seller: Optional[str] = None
+    UnidadeDeNegocio: Optional[str] = None
+    Rede: Optional[str] = None
+    Campanha: Optional[str] = None

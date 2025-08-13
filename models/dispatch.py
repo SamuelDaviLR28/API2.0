@@ -105,6 +105,39 @@ class Warehouse(BaseModel):
     Id: Optional[str] = None
     Nome: Optional[str] = None
 
+class Transportadora(BaseModel):
+    Id: Optional[str] = None
+    Nome: Optional[str] = None
+    NomeServico: Optional[str] = None
+    IdServico: Optional[str] = None
+    CodigoRastreio: Optional[str] = None
+    ListaPostagem: Optional[str] = None
+    Reversa: Optional[bool] = None
+    Coleta: Optional[bool] = None
+    Dispatch: Optional[bool] = None
+    AlocacaoAutomatica: Optional[bool] = None
+    ValorAR: Optional[float] = None
+    ValorAverbadoPago: Optional[float] = None
+    ValorDeclarado: Optional[float] = None
+    ValorFrete: Optional[float] = None
+    Prioridade: Optional[bool] = None
+
+class NotaFiscal(BaseModel):
+    DataEmissao: Optional[datetime] = None
+    Numero: Optional[int] = None
+    Serie: Optional[int] = None
+    Chave: Optional[str] = None
+    ValorTotal: Optional[float] = None
+    ValorTotalProdutos: Optional[float] = None
+    Cfop: Optional[str] = None
+    StringXML: Optional[str] = None
+
+class Frete(BaseModel):
+    Transportadora: Optional[Transportadora] = None
+    Destinatario: Optional[Pessoa] = None
+    Remetente: Optional[Pessoa] = None
+    Tomador: Optional[Pessoa] = None
+
 class DispatchRequest(BaseModel):
     CriacaoPedido: datetime
     DataPagamento: Optional[datetime] = None

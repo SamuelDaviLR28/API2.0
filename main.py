@@ -4,12 +4,14 @@ from dotenv import load_dotenv
 import os
 import traceback
 
+# Carregar variáveis de ambiente
 load_dotenv()
 
 print("🔐 TOUTBOX_API_KEY carregada:", os.getenv("TOUTBOX_API_KEY"))
 print("🔐 API_KEY carregada:", os.getenv("API_KEY"))
 
-from routers import dispatch, patch, rastro, cancelamento, sla, integracao  # sem pedido
+# Importar routers
+from routers import dispatch, patch, rastro, cancelamento, sla, integracao
 
 app = FastAPI(
     title="API Integração Transportadora - Toutbox",
@@ -17,6 +19,7 @@ app = FastAPI(
     swagger_ui_parameters={"persistAuthorization": True}
 )
 
+# Configurar CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -24,45 +27,51 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Middleware de autenticação
 @app.middleware("http")
 async def autenticar_api_key(request: Request, call_next):
     try:
         rotas_livres = ("/", "/docs", "/openapi.json", "/favicon.ico", "/redoc")
-
         if request.url.path in rotas_livres:
             return await call_next(request)
 
         rotas_sensiveis = ("/dispatch", "/patch", "/rastro", "/cancelamento", "/integracao")
         if any(request.url.path.startswith(r) for r in rotas_sensiveis):
-            chave_enviada = request.headers.get("x-api-key")
-            chave_configurada = os.getenv("API_KEY")
+            chave_enviada = (request.headers.get("x-api-key") or "").strip()
+            chave_configurada = (os.getenv("API_KEY") or "").strip()
 
-            print(f"🔑 Chave enviada no header x-api-key: {chave_enviada}")
-            print(f"🔐 Chave configurada no ambiente API_KEY: {chave_configurada}")
+            print(f"🔑 Chave enviada no header: '{chave_enviada}'")
+            print(f"🔐 Chave configurada no .env: '{chave_configurada}'")
 
             if not chave_configurada:
                 raise HTTPException(status_code=500, detail="API_KEY não configurada no ambiente.")
 
-            if (chave_enviada or "").strip() != chave_configurada.strip():
+            if chave_enviada != chave_configurada:
+                print("❌ Chave inválida!")
                 raise HTTPException(status_code=403, detail="API Key inválida.")
 
         return await call_next(request)
 
-    except Exception as e:
-        print("🔥 Erro no middleware de autenticação:")
+    except HTTPException:
+        raise
+    except Exception:
+        print("🔥 Erro inesperado no middleware de autenticação:")
         traceback.print_exc()
-        raise e
+        raise HTTPException(status_code=500, detail="Erro interno de autenticação.")
 
+# Startup
 @app.on_event("startup")
 def iniciar_agendador():
     print("🚀 Iniciando agendador de tarefas automáticas...")
     from utils.scheduler import start as start_scheduler
     start_scheduler()
 
+# Rota raiz
 @app.get("/")
 def raiz():
     return {"mensagem": "API no ar com autenticação por API Key nas rotas sensíveis."}
 
+# Incluir routers
 app.include_router(dispatch, prefix="/dispatch", tags=["dispatch"])
 app.include_router(patch, prefix="/patch", tags=["patch"])
 app.include_router(rastro, prefix="/rastro", tags=["rastro"])

@@ -2,7 +2,6 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 
-
 class Produto(BaseModel):
     Descricao: str
     Preco: float
@@ -16,7 +15,6 @@ class Produto(BaseModel):
     Comprimento: Optional[float] = None
     Largura: Optional[float] = None
     Peso: Optional[float] = None
-
 
 class Transportadora(BaseModel):
     Id: str
@@ -34,7 +32,19 @@ class Transportadora(BaseModel):
     ValorDeclarado: Optional[float] = None
     ValorFrete: Optional[float] = None
     Prioridade: Optional[bool] = None
-
+    CNPJ: Optional[str] = None
+    ResponsavelRecebimento: Optional[str] = None
+    SenhaVerificacao: Optional[str] = None
+    TipoOperacao: Optional[str] = None
+    TipoDevolucao: Optional[str] = None
+    MotivoDevolucao: Optional[str] = None
+    TipoPrioridade: Optional[str] = None
+    ServicosAdicionais: Optional[str] = None
+    PrevisaoDeEntrega: Optional[str] = None
+    DataPrometida: Optional[str] = None
+    PrazoDiasUteis: Optional[int] = None
+    PrazoEntregaFinal: Optional[str] = None
+    CodigoAutorizacao: Optional[str] = None
 
 class Pessoa(BaseModel):
     Nome: str
@@ -50,20 +60,18 @@ class Pessoa(BaseModel):
     Bairro: Optional[str] = None
     Cidade: str
     Estado: str
-    Pais: str
+    Pais: Optional[str] = None
     CEP: str
     IE: Optional[str] = None
     Loja: Optional[str] = None
     NomeCentroDistribuicao: Optional[str] = None
     CodigoCentroDistribuicao: Optional[str] = None
 
-
 class Frete(BaseModel):
     Transportadora: Transportadora
     Destinatario: Pessoa
     Remetente: Pessoa
-    Tomador: Optional[Pessoa] = None  # agora opcional
-
+    Tomador: Optional[Pessoa] = None
 
 class NotaFiscal(BaseModel):
     DataEmissao: datetime
@@ -71,10 +79,9 @@ class NotaFiscal(BaseModel):
     Serie: int
     Chave: Optional[str] = None
     ValorTotal: float
-    ValorTotalProdutos: Optional[float] = None  # agora opcional
+    ValorTotalProdutos: Optional[float] = None
     Cfop: Optional[str] = None
     StringXML: Optional[str] = None
-
 
 class InfosAdicionais(BaseModel):
     EntregaAgendada: Optional[bool] = False
@@ -91,7 +98,6 @@ class InfosAdicionais(BaseModel):
     IdDestinatario: Optional[str] = None
     SegmentoCliente: Optional[str] = None
 
-
 class Item(BaseModel):
     IdUnico: str
     QuantidadeProdutos: int
@@ -103,17 +109,14 @@ class Item(BaseModel):
     Produtos: List[Produto]
     Frete: Frete
 
-
 class CanalDeVenda(BaseModel):
     Id: Optional[str] = None
     Nome: Optional[str] = None
     Tipo: Optional[str] = None
 
-
 class Warehouse(BaseModel):
     Id: Optional[str] = None
     Nome: Optional[str] = None
-
 
 class DispatchRequest(BaseModel):
     CriacaoPedido: datetime

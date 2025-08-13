@@ -1,6 +1,7 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
+
 
 class Produto(BaseModel):
     Descricao: str
@@ -15,6 +16,7 @@ class Produto(BaseModel):
     Comprimento: Optional[float] = None
     Largura: Optional[float] = None
     Peso: Optional[float] = None
+
 
 class Transportadora(BaseModel):
     Id: Optional[str] = None
@@ -32,6 +34,7 @@ class Transportadora(BaseModel):
     ValorDeclarado: Optional[float] = None
     ValorFrete: Optional[float] = None
     Prioridade: Optional[bool] = None
+
 
 class Pessoa(BaseModel):
     Nome: Optional[str] = None
@@ -54,11 +57,13 @@ class Pessoa(BaseModel):
     NomeCentroDistribuicao: Optional[str] = None
     CodigoCentroDistribuicao: Optional[str] = None
 
+
 class Frete(BaseModel):
     Transportadora: Optional[Transportadora] = None
-    Destinatario: Optional[Pessoa] = None
-    Remetente: Optional[Pessoa] = None
+    Destinatario: Pessoa
+    Remetente: Pessoa
     Tomador: Optional[Pessoa] = None
+
 
 class NotaFiscal(BaseModel):
     DataEmissao: Optional[datetime] = None
@@ -70,20 +75,6 @@ class NotaFiscal(BaseModel):
     Cfop: Optional[str] = None
     StringXML: Optional[str] = None
 
-class InfosAdicionais(BaseModel):
-    EntregaAgendada: Optional[bool] = None
-    Portabilidade: Optional[bool] = None
-    CartaoPostagem: Optional[str] = None
-    CodigoAdmnistrativo: Optional[str] = None
-    ContratoCorreios: Optional[str] = None
-    DataAgendamento: Optional[str] = None
-    PeriodoEntregaAgendamento: Optional[str] = None
-    Cluster: Optional[str] = None
-    TecnologiaDeAcesso: Optional[str] = None
-    Acronimo: Optional[str] = None
-    IdCliente: Optional[str] = None
-    IdDestinatario: Optional[str] = None
-    SegmentoCliente: Optional[str] = None
 
 class Item(BaseModel):
     IdUnico: str
@@ -96,47 +87,17 @@ class Item(BaseModel):
     Produtos: List[Produto]
     Frete: Frete
 
+
 class CanalDeVenda(BaseModel):
     Id: Optional[str] = None
     Nome: Optional[str] = None
     Tipo: Optional[str] = None
 
+
 class Warehouse(BaseModel):
     Id: Optional[str] = None
     Nome: Optional[str] = None
 
-class Transportadora(BaseModel):
-    Id: Optional[str] = None
-    Nome: Optional[str] = None
-    NomeServico: Optional[str] = None
-    IdServico: Optional[str] = None
-    CodigoRastreio: Optional[str] = None
-    ListaPostagem: Optional[str] = None
-    Reversa: Optional[bool] = None
-    Coleta: Optional[bool] = None
-    Dispatch: Optional[bool] = None
-    AlocacaoAutomatica: Optional[bool] = None
-    ValorAR: Optional[float] = None
-    ValorAverbadoPago: Optional[float] = None
-    ValorDeclarado: Optional[float] = None
-    ValorFrete: Optional[float] = None
-    Prioridade: Optional[bool] = None
-
-class NotaFiscal(BaseModel):
-    DataEmissao: Optional[datetime] = None
-    Numero: Optional[int] = None
-    Serie: Optional[int] = None
-    Chave: Optional[str] = None
-    ValorTotal: Optional[float] = None
-    ValorTotalProdutos: Optional[float] = None
-    Cfop: Optional[str] = None
-    StringXML: Optional[str] = None
-
-class Frete(BaseModel):
-    Transportadora: Optional[Transportadora] = None
-    Destinatario: Optional[Pessoa] = None
-    Remetente: Optional[Pessoa] = None
-    Tomador: Optional[Pessoa] = None
 
 class DispatchRequest(BaseModel):
     CriacaoPedido: datetime
@@ -147,12 +108,9 @@ class DispatchRequest(BaseModel):
     NumeroPedidoAux: Optional[str] = None
     CanalDeVenda: Optional[CanalDeVenda] = None
     Warehouse: Optional[Warehouse] = None
-    UnidadeDeNegocio: Optional[str] = None
-    Rede: Optional[str] = None
-    Campanha: Optional[str] = None
     Itens: List[Item]
     NotaFiscal: Optional[NotaFiscal] = None
-    InfosAdicionais: Optional[InfosAdicionais] = None
+    InfosAdicionais: Optional[dict] = None
     Marketplace: Optional[str] = None
     Marca: Optional[str] = None
     Seller: Optional[str] = None

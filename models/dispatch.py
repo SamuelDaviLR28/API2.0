@@ -55,10 +55,10 @@ class Pessoa(BaseModel):
     CodigoCentroDistribuicao: Optional[str] = None
 
 class Frete(BaseModel):
-    Transportadora: Transportadora
-    Destinatario: Pessoa
-    Remetente: Pessoa
-    Tomador: Pessoa
+    Transportadora: Optional[Transportadora] = None
+    Destinatario: Optional[Pessoa] = None
+    Remetente: Optional[Pessoa] = None
+    Tomador: Optional[Pessoa] = None
 
 class NotaFiscal(BaseModel):
     DataEmissao: Optional[datetime] = None
@@ -94,7 +94,7 @@ class Item(BaseModel):
     Altura: Optional[float] = None
     Comprimento: Optional[float] = None
     Produtos: List[Produto]
-    Frete: Frete
+    Frete: Optional[Frete] = None
 
 class CanalDeVenda(BaseModel):
     Id: Optional[str] = None

@@ -71,11 +71,9 @@ def iniciar_agendador():
 def raiz():
     return {"mensagem": "API no ar com autenticação por API Key nas rotas sensíveis."}
 
-# Incluir routers
-# Adicionando barra final para evitar redirecionamentos
-app.include_router(dispatch, prefix="/dispatch/", tags=["dispatch"])
-app.include_router(patch, prefix="/patch/", tags=["patch"])
-app.include_router(rastro, prefix="/rastro/", tags=["rastro"])
-app.include_router(cancelamento, prefix="/cancelamento/", tags=["cancelamento"])
-app.include_router(sla, prefix="/sla/", tags=["SLA"])
-app.include_router(integracao, prefix="/integracao/", tags=["integração"])
+app.include_router(dispatch, prefix="/dispatch", tags=["dispatch"])
+app.include_router(patch, prefix="/patch", tags=["patch"])
+app.include_router(rastro, prefix="/rastro", tags=["rastro"])
+app.include_router(cancelamento, prefix="/cancelamento", tags=["cancelamento"])
+app.include_router(sla, prefix="/sla", tags=["SLA"])
+app.include_router(integracao, prefix="/integracao", tags=["integração"])

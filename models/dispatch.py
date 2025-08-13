@@ -33,26 +33,22 @@ class Transportadora(BaseModel):
     ValorFrete: Optional[float] = None
     Prioridade: Optional[bool] = None
 
+    model_config = {
+        "extra": "allow"  # permite campos adicionais sem erro
+    }
+
 class Pessoa(BaseModel):
     Nome: Optional[str] = None
-    CPFCNPJ: Optional[str] = None
-    Telefone: Optional[str] = None
-    TelefoneFixo: Optional[str] = None
-    TelefoneAdicional: Optional[str] = None
-    Email: Optional[str] = None
-    Empresa: Optional[str] = None
+    Estado: Optional[str] = None
+    Cidade: Optional[str] = None
     Endereco: Optional[str] = None
     Numero: Optional[str] = None
-    Complemento: Optional[str] = None
-    Bairro: Optional[str] = None
-    Cidade: Optional[str] = None
-    Estado: Optional[str] = None
-    Pais: Optional[str] = None
     CEP: Optional[str] = None
-    IE: Optional[str] = None
-    Loja: Optional[str] = None
-    NomeCentroDistribuicao: Optional[str] = None
-    CodigoCentroDistribuicao: Optional[str] = None
+    Pais: Optional[str] = None
+
+    model_config = {
+        "extra": "allow"
+    }
 
 class Frete(BaseModel):
     Transportadora: Optional[Transportadora] = None
@@ -60,26 +56,27 @@ class Frete(BaseModel):
     Remetente: Optional[Pessoa] = None
     Tomador: Optional[Pessoa] = None
 
+    model_config = {
+        "extra": "allow"
+    }
+
 class NotaFiscal(BaseModel):
     DataEmissao: Optional[datetime] = None
     Numero: Optional[int] = None
     Serie: Optional[int] = None
     Chave: Optional[str] = None
     ValorTotal: Optional[float] = None
-    ValorTotalProdutos: Optional[float] = None
-    Cfop: Optional[str] = None
-    StringXML: Optional[str] = None
+
+    model_config = {
+        "extra": "allow"
+    }
 
 class Item(BaseModel):
     IdUnico: str
     QuantidadeProdutos: int
     Volumes: int
-    Largura: Optional[float] = None
-    Peso: Optional[float] = None
-    Altura: Optional[float] = None
-    Comprimento: Optional[float] = None
     Produtos: List[Produto]
-    Frete: Frete
+    Frete: Optional[Frete] = None
 
 class CanalDeVenda(BaseModel):
     Id: Optional[str] = None
@@ -92,19 +89,12 @@ class Warehouse(BaseModel):
 
 class DispatchRequest(BaseModel):
     CriacaoPedido: datetime
-    DataPagamento: Optional[datetime] = None
     NumeroPedido: str
-    NumeroPedidoMarketplace: Optional[str] = None
-    NumeroPedidoErp: Optional[str] = None
-    NumeroPedidoAux: Optional[str] = None
+    Itens: List[Item]
     CanalDeVenda: Optional[CanalDeVenda] = None
     Warehouse: Optional[Warehouse] = None
-    UnidadeDeNegocio: Optional[str] = None
-    Rede: Optional[str] = None
-    Campanha: Optional[str] = None
-    Itens: List[Item]
     NotaFiscal: Optional[NotaFiscal] = None
-    Marketplace: Optional[str] = None
-    Marca: Optional[str] = None
-    Seller: Optional[str] = None
-    IdsAuxiliares: Optional[List[str]] = None
+
+    model_config = {
+        "extra": "allow"
+    }

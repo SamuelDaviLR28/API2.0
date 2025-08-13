@@ -15,6 +15,7 @@ class Produto(BaseModel):
     Comprimento: Optional[float] = None
     Largura: Optional[float] = None
     Peso: Optional[float] = None
+    model_config = {"extra": "allow"}
 
 class Transportadora(BaseModel):
     Id: Optional[str] = None
@@ -32,10 +33,7 @@ class Transportadora(BaseModel):
     ValorDeclarado: Optional[float] = None
     ValorFrete: Optional[float] = None
     Prioridade: Optional[bool] = None
-
-    model_config = {
-        "extra": "allow"  # permite campos adicionais sem erro
-    }
+    model_config = {"extra": "allow"}
 
 class Pessoa(BaseModel):
     Nome: Optional[str] = None
@@ -45,20 +43,14 @@ class Pessoa(BaseModel):
     Numero: Optional[str] = None
     CEP: Optional[str] = None
     Pais: Optional[str] = None
-
-    model_config = {
-        "extra": "allow"
-    }
+    model_config = {"extra": "allow"}
 
 class Frete(BaseModel):
     Transportadora: Optional[Transportadora] = None
     Destinatario: Optional[Pessoa] = None
     Remetente: Optional[Pessoa] = None
     Tomador: Optional[Pessoa] = None
-
-    model_config = {
-        "extra": "allow"
-    }
+    model_config = {"extra": "allow"}
 
 class NotaFiscal(BaseModel):
     DataEmissao: Optional[datetime] = None
@@ -66,10 +58,7 @@ class NotaFiscal(BaseModel):
     Serie: Optional[int] = None
     Chave: Optional[str] = None
     ValorTotal: Optional[float] = None
-
-    model_config = {
-        "extra": "allow"
-    }
+    model_config = {"extra": "allow"}
 
 class Item(BaseModel):
     IdUnico: str
@@ -77,15 +66,18 @@ class Item(BaseModel):
     Volumes: int
     Produtos: List[Produto]
     Frete: Optional[Frete] = None
+    model_config = {"extra": "allow"}
 
 class CanalDeVenda(BaseModel):
     Id: Optional[str] = None
     Nome: Optional[str] = None
     Tipo: Optional[str] = None
+    model_config = {"extra": "allow"}
 
 class Warehouse(BaseModel):
     Id: Optional[str] = None
     Nome: Optional[str] = None
+    model_config = {"extra": "allow"}
 
 class DispatchRequest(BaseModel):
     CriacaoPedido: datetime
@@ -94,7 +86,4 @@ class DispatchRequest(BaseModel):
     CanalDeVenda: Optional[CanalDeVenda] = None
     Warehouse: Optional[Warehouse] = None
     NotaFiscal: Optional[NotaFiscal] = None
-
-    model_config = {
-        "extra": "allow"
-    }
+    model_config = {"extra": "allow"}

@@ -11,7 +11,7 @@ import traceback
 
 router = APIRouter()
 
-@router.post("/", dependencies=[Depends(verificar_api_key)])
+@router.post("", dependencies=[Depends(verificar_api_key)])
 async def receber_dispatch(pedido: DispatchRequest, db: Session = Depends(get_db)):
     try:
         # Valida itens do pedido
